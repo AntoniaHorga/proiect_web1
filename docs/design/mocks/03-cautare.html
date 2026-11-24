@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="ro" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-003 · Căutare Indicatori („Unde s-au dus banii?”) — Șura Mare</title>
+  <style>
+    /* Design Tokens din docs/design/DESIGN.md */
+    :root {
+      --font-sans: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+      --bg-app: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-surface-subtle: #F1F5F9;
+      --fg-default: #0F172A;
+      --fg-muted: #475569;
+      --fg-subtle: #64748B;
+      --border-default: #E2E8F0;
+      --border-subtle: #F1F5F9;
+
+      --brand-primary: #0F3B9D;
+      --brand-primary-hover: #0C2F7D;
+      --brand-gold: #A16207;
+      --brand-gold-bg: #DFD400;
+      --brand-gold-subtle: #FEF9C3;
+
+      --finance-positive: #15803D;
+      --finance-positive-bg: #DCFCE7;
+      --finance-warning: #B45309;
+      --finance-warning-bg: #FEF3C7;
+      --finance-critical: #B91C1C;
+      --finance-critical-bg: #FEE2E2;
+
+      --dual-operating: #334155;
+      --dual-operating-bg: #F1F5F9;
+      --dual-investment: #0284C7;
+      --dual-investment-bg: #E0F2FE;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+      --radius-full: 9999px;
+    
+      /* Fixed brand colours — invariant across themes */
+      --brand-primary-fixed: #0F3B9D;
+      --brand-gold-fixed: #DFD400;
+      --color-white: #FFFFFF;
+
+      /* Chart tokens (ECharts) */
+      --chart-forecast: #60A5FA;
+      --chart-actual: #0F3B9D;
+      --chart-stacked-operating: #334155;
+      --chart-stacked-investment: #0284C7;
+
+      /* Focus ring (WCAG 2.1 §2.4.7) */
+      --focus-ring: 0 0 0 3px rgba(15, 59, 157, 0.5);
+
+      /* Derived brand shadow */
+      --shadow-brand: 0 4px 14px rgba(15, 59, 157, 0.25);
+
+      /* Mock toolbar badge (fixed UI chrome) */
+      --badge-mock-bg: #15803D;
+    }
+
+    html.dark {
+      --bg-app: #0B0F17;
+      --bg-surface: #111827;
+      --bg-surface-subtle: #1F2937;
+      --fg-default: #F8FAFC;
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --border-default: #374151;
+      --border-subtle: #1F2937;
+
+      --brand-primary: #60A5FA;
+      --brand-primary-hover: #93C5FD;
+      --brand-gold: #FACC15;
+      --brand-gold-bg: #854D0E;
+      --brand-gold-subtle: #422006;
+
+      --finance-positive: #4ADE80;
+      --finance-positive-bg: #052E16;
+      --finance-warning: #FBBF24;
+      --finance-warning-bg: #451A03;
+      --finance-critical: #F87171;
+      --finance-critical-bg: #450A0A;
+
+      --dual-operating: #94A3B8;
+      --dual-operating-bg: #1E293B;
+      --dual-investment: #38BDF8;
+      --dual-investment-bg: #082F49;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --chart-forecast: #93C5FD;
+      --chart-actual: #60A5FA;
+      --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--fg-default);
+      line-height: 1.5;
+      transition: background-color 200ms ease, color 200ms ease;
+    }
+
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    .font-mono { font-family: var(--font-mono); }
+
+    body.mode-citizen .analytic-only { display: none !important; }
+    body.mode-analytic .citizen-only { display: none !important; }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .icon-lg { width: 22px; height: 22px; }
+    .icon-xl { width: 40px; height: 40px; }
+    /* Keyboard focus ring (WCAG 2.1 §2.4.7) */
+    *:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    /* Test Toolbar */
+    .mock-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      font-size: 13px;
+    }
+    .mock-toolbar-left, .mock-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .badge-mock { background: var(--badge-mock-bg); color: var(--color-white); padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700; font-size: 11px; }
+    .btn-toggle {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--fg-default);
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-toggle.active { background: var(--brand-primary-fixed); color: var(--color-white); border-color: var(--brand-primary-fixed); }
+
+    /* Unified Header Nav Oficial Șura Mare: 76px, Stemă curată fără chenar alb */
+    .app-header {
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border-bottom: 3px solid var(--brand-gold-fixed);
+      min-height: 76px;
+      padding: 0 24px;
+      box-shadow: var(--shadow-brand);
+      display: flex;
+      align-items: center;
+    }
+    .header-content {
+      width: 100%;
+      max-width: 1340px;
+      margin: 0 auto;
+      min-height: 73px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .brand-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--color-white); flex-shrink: 0; }
+    .crest-img {
+      height: 50px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+    }
+    .brand-title { font-weight: 800; font-size: 16px; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-sub { font-size: 10.5px; color: var(--brand-gold-fixed); font-weight: 700; letter-spacing: 0.6px; margin-top: 2px; }
+    .nav-links { display: flex; align-items: center; gap: 2px; list-style: none; }
+    .nav-link {
+      text-decoration: none;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 8px 11px;
+      border-radius: var(--radius-md);
+      transition: all 150ms ease;
+      position: relative;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--color-white); background: rgba(255, 255, 255, 0.14); }
+    .nav-link.active { color: var(--color-white); font-weight: 700; background: rgba(0, 0, 0, 0.22); }
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: -18px;
+      left: 10px;
+      right: 10px;
+      height: 3px;
+      background: var(--brand-gold-fixed);
+      border-radius: 2px 2px 0 0;
+    }
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .pill-switch {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.28);
+      padding: 3px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      gap: 2px;
+    }
+    .pill-btn {
+      border: none;
+      background: transparent;
+      padding: 5px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.85);
+      transition: all 150ms ease;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .pill-btn:hover { color: var(--color-white); }
+    .pill-btn.active { background: var(--brand-gold-fixed); color: var(--fg-default); box-shadow: var(--shadow-sm); }
+    .pill-btn.mode-active { background: var(--color-white); color: var(--brand-primary-fixed); box-shadow: var(--shadow-sm); }
+    .header-auth-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--color-white);
+      text-decoration: none;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 11px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: var(--radius-md);
+      white-space: nowrap;
+    }
+    .header-auth-btn:hover { background: rgba(255, 255, 255, 0.24); }
+
+    /* Container */
+    .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px 64px 24px; }
+
+    /* Search Hero Card */
+    .search-hero {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+      border-left: 4px solid var(--brand-primary-fixed);
+    }
+    .search-title { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+    .search-desc { font-size: 14px; color: var(--fg-muted); margin-bottom: 18px; }
+    .search-box-wrap { position: relative; display: flex; align-items: center; margin-bottom: 14px; }
+    .search-icon { position: absolute; left: 16px; color: var(--fg-muted); }
+    .search-input {
+      width: 100%;
+      padding: 14px 16px 14px 48px;
+      font-family: var(--font-sans);
+      font-size: 15px;
+      border: 2px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      background: var(--bg-surface);
+      color: var(--fg-default);
+      transition: border-color 150ms ease;
+    }
+    .search-input:focus { outline: none; border-color: var(--brand-primary-fixed); }
+    .search-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-muted); }
+    .chip {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--fg-default);
+      transition: all 150ms ease;
+    }
+    .chip:hover, .chip.active { border-color: var(--brand-primary-fixed); background: var(--brand-primary-fixed); color: var(--color-white); }
+
+    /* Filtre tip Pastilă (Pills) */
+    .search-filters {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .filter-label { font-size: 12.5px; font-weight: 700; color: var(--fg-muted); min-width: 78px; }
+    .filter-pill-group { display: flex; flex-wrap: wrap; gap: 6px; }
+    .filter-pill {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--fg-default);
+      padding: 5px 13px;
+      border-radius: var(--radius-full);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 150ms ease;
+      font-family: var(--font-sans);
+    }
+    .filter-pill:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
+    .filter-pill.active { background: var(--brand-primary-fixed); color: var(--color-white); border-color: var(--brand-primary-fixed); box-shadow: var(--shadow-sm); }
+
+    /* Bilanț Rapid al Căutării */
+    .search-summary-card {
+      background: linear-gradient(135deg, rgba(15, 59, 157, 0.06) 0%, rgba(2, 132, 199, 0.05) 100%);
+      border: 1px solid rgba(15, 59, 157, 0.22);
+      border-radius: var(--radius-xl);
+      padding: 16px 20px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .summary-metrics { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+    .summary-stat { display: flex; flex-direction: column; gap: 2px; }
+    .summary-stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--fg-muted); }
+    .summary-stat-val { font-size: 20px; font-weight: 800; color: var(--fg-default); }
+    .summary-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .btn-csv-export {
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border: none;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 150ms ease;
+    }
+    .btn-csv-export:hover { background: var(--brand-primary-hover); }
+    .btn-json-export {
+      background: var(--bg-surface);
+      color: var(--fg-default);
+      border: 1px solid var(--border-default);
+      padding: 7px 12px;
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Rezultate Listă */
+    .results-count { font-size: 14px; font-weight: 600; color: var(--fg-muted); margin-bottom: 12px; }
+    .result-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+    .result-card:hover { border-color: var(--brand-primary); box-shadow: var(--shadow-md); }
+    .result-top-row { display: flex; gap: 16px; align-items: flex-start; }
+    .result-thumb {
+      width: 96px;
+      height: 70px;
+      border-radius: var(--radius-md);
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--border-default);
+      background: var(--bg-surface-subtle);
+    }
+    .result-thumb-svg {
+      width: 96px;
+      height: 70px;
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+      border: 1px solid var(--border-default);
+      background: linear-gradient(135deg, rgba(225, 29, 72, 0.12), rgba(15, 59, 157, 0.08));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--finance-critical);
+    }
+    .result-main-info { flex: 1; min-width: 0; }
+    .result-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
+    .result-code-tag {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--brand-primary);
+      background: var(--bg-surface-subtle);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+    .result-citizen-tag {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--fg-muted);
+      background: var(--bg-surface-subtle);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+    .result-title { font-size: 16px; font-weight: 700; color: var(--fg-default); }
+    .result-title mark { background: var(--brand-gold-subtle); color: var(--brand-gold); padding: 0 3px; border-radius: 2px; }
+    .result-domain-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-full); white-space: nowrap; }
+
+    .multi-year-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      background: var(--bg-surface-subtle);
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+    }
+    .multi-year-col { display: flex; flex-direction: column; gap: 2px; padding: 4px 6px; border-radius: var(--radius-sm); }
+    .multi-year-col.year-highlight { background: var(--bg-surface); border: 1px solid var(--brand-primary); }
+    .col-yr { font-weight: 700; color: var(--fg-muted); }
+    .col-sum { font-size: 14px; font-weight: 800; color: var(--fg-default); }
+    .col-rate { font-size: 11px; color: var(--fg-subtle); }
+
+    .result-footer-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding-top: 4px;
+    }
+    .exec-mini-wrap { flex: 1; min-width: 220px; display: flex; align-items: center; gap: 10px; }
+    .exec-mini-label { font-size: 11.5px; font-weight: 600; color: var(--fg-muted); white-space: nowrap; }
+    .exec-mini-bar { flex: 1; height: 7px; background: var(--border-default); border-radius: 999px; overflow: hidden; max-width: 220px; }
+    .exec-mini-fill { height: 100%; border-radius: 999px; }
+    .exec-mini-pct { font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .btn-explorer-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--brand-primary);
+      text-decoration: none;
+      padding: 5px 12px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      transition: all 150ms ease;
+    }
+    .btn-explorer-link:hover { background: var(--brand-primary-fixed); color: var(--color-white); border-color: var(--brand-primary-fixed); }
+
+    /* States */
+    .state-view { display: none; }
+    .state-view.active { display: block; }
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-surface-subtle) 25%, var(--border-default) 50%, var(--bg-surface-subtle) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-md);
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    @media (max-width: 1120px) {
+      .header-content { flex-wrap: wrap; padding: 10px 0; }
+      .nav-link.active::after { bottom: -6px; }
+    }
+    @media (max-width: 720px) {
+      .multi-year-grid { grid-template-columns: 1fr; }
+      .result-top-row { flex-direction: column; }
+      .result-thumb, .result-thumb-svg { width: 100%; height: 120px; }
+      .nav-links { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body class="mode-citizen">
+
+  <!-- Mockup Toolbar Testare -->
+  <div class="mock-toolbar">
+    <div class="mock-toolbar-left">
+      <span class="badge-mock">DS-003 · APPROVED</span>
+      <strong>03-cautare.html</strong> — Căutare Indicatori (<code>/cautare</code>)
+    </div>
+    <div class="mock-toolbar-right">
+      <span>Stare:</span>
+      <button class="btn-toggle active" data-state="normal" onclick="switchState('normal')">Normal (Date Reale)</button>
+      <button class="btn-toggle" data-state="loading" onclick="switchState('loading')">Loading (Skeleton)</button>
+      <button class="btn-toggle" data-state="empty" onclick="switchState('empty')">Empty</button>
+      <button class="btn-toggle" data-state="error" onclick="switchState('error')">Error</button>
+      <div style="height: 16px; width: 1px; background: var(--border-default);"></div>
+      <button class="btn-toggle" id="theme-btn" onclick="toggleTheme()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        Dark Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- Header Navigație Oficială Șura Mare -->
+  <header class="app-header">
+    <div class="header-content">
+      <a href="01-dashboard.html" class="brand-logo">
+        <img src="../assets/stema-sura-mare.png" alt="Stema Comunei Șura Mare" class="crest-img">
+        <div>
+          <div class="brand-title">COMUNA ȘURA MARE</div>
+          <div class="brand-sub">EXPLORATOR DE BUGET LOCAL</div>
+        </div>
+      </a>
+
+      <nav aria-label="Navigație principală">
+        <ul class="nav-links">
+          <li><a href="01-dashboard.html" class="nav-link">Tablou de Bord</a></li>
+          <li><a href="02-explorator.html" class="nav-link">Explorator Buget</a></li>
+          <li><a href="03-cautare.html" class="nav-link active">Căutare</a></li>
+          <li><a href="04-comparatii.html" class="nav-link">Comparații An/An</a></li>
+          <li><a href="05-audit.html" class="nav-link">Metodologie &amp; Audit</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <div class="pill-switch" role="group" aria-label="Mod vizualizare">
+          <button class="pill-btn mode-active" data-view-mode="citizen" onclick="setViewMode('citizen')">Mod Cetățean</button>
+          <button class="pill-btn" data-view-mode="analytic" onclick="setViewMode('analytic')">Mod Analitic</button>
+        </div>
+        <div class="pill-switch" role="group" aria-label="Selectare an bugetar">
+          <button class="pill-btn" data-year="2022" onclick="selectYear('2022')">2022</button>
+          <button class="pill-btn" data-year="2024" onclick="selectYear('2024')">2024</button>
+          <button class="pill-btn active" data-year="2025" onclick="selectYear('2025')">2025</button>
+        </div>
+        <a href="06-auth.html" class="header-auth-btn">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Elena Popescu
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- STAREA NORMALĂ -->
+  <main id="state-normal" class="state-view active">
+    <div class="container">
+
+      <!-- Search Hero -->
+      <section class="search-hero">
+        <h1 class="search-title">Unde s-au dus banii comunei Șura Mare?</h1>
+        <p class="search-desc">Caută direct în denumirile oficiale de capitole, subcapitole, titluri economice și proiecte de investiții (2022–2025).</p>
+
+        <div class="search-box-wrap">
+          <svg class="icon search-icon icon-lg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="search-input" class="search-input" value="străzi" oninput="filterResults()" placeholder="Exemplu: asfalt, iluminat, școală, canalizare, parc, personal...">
+        </div>
+
+        <div class="search-chips">
+          <span>Sugestii populare:</span>
+          <button class="chip active" onclick="setQuery('străzi', this)">străzi și drumuri</button>
+          <button class="chip" onclick="setQuery('iluminat', this)">iluminat & parc Hamba</button>
+          <button class="chip" onclick="setQuery('școală', this)">școli și educație</button>
+          <button class="chip" onclick="setQuery('canalizare', this)">apă & canalizare</button>
+          <button class="chip" onclick="setQuery('', this)">toți indicatorii</button>
+        </div>
+      </section>
+
+      <!-- Bara Filtre Tip Pastilă (Pills) -->
+      <div class="search-filters" role="region" aria-label="Filtre căutare">
+        <div class="filter-row">
+          <span class="filter-label">Orizont:</span>
+          <div class="filter-pill-group" id="horizon-pills">
+            <button type="button" class="filter-pill active" data-horizon="all" onclick="setHorizonFilter('all', this)">Toți anii (2022–2025)</button>
+            <button type="button" class="filter-pill" data-horizon="2025" onclick="setHorizonFilter('2025', this)">Doar 2025</button>
+            <button type="button" class="filter-pill" data-horizon="2024" onclick="setHorizonFilter('2024', this)">Doar 2024</button>
+            <button type="button" class="filter-pill" data-horizon="2022" onclick="setHorizonFilter('2022', this)">Doar 2022</button>
+          </div>
+        </div>
+
+        <div class="filter-row">
+          <span class="filter-label">Secțiune:</span>
+          <div class="filter-pill-group" id="section-pills">
+            <button type="button" class="filter-pill active" data-section="all" onclick="setSectionFilter('all', this)">Toate secțiunile</button>
+            <button type="button" class="filter-pill" data-section="investitii" onclick="setSectionFilter('investitii', this)">Investiții / Dezvoltare</button>
+            <button type="button" class="filter-pill" data-section="functionare" onclick="setSectionFilter('functionare', this)">Funcționare Curentă</button>
+          </div>
+        </div>
+
+        <div class="filter-row">
+          <span class="filter-label">Domeniu:</span>
+          <div class="filter-pill-group" id="domain-pills">
+            <button type="button" class="filter-pill active" data-domain="all" onclick="setDomainFilter('all', this)">Toate (7 domenii)</button>
+            <button type="button" class="filter-pill" data-domain="drumuri" onclick="setDomainFilter('drumuri', this)">Drumuri &amp; Transport</button>
+            <button type="button" class="filter-pill" data-domain="iluminat" onclick="setDomainFilter('iluminat', this)">Iluminat &amp; Parc</button>
+            <button type="button" class="filter-pill" data-domain="educatie" onclick="setDomainFilter('educatie', this)">Educație &amp; Cultură</button>
+            <button type="button" class="filter-pill" data-domain="apa" onclick="setDomainFilter('apa', this)">Apă &amp; Canalizare</button>
+            <button type="button" class="filter-pill" data-domain="social" onclick="setDomainFilter('social', this)">Social &amp; Sănătate</button>
+            <button type="button" class="filter-pill" data-domain="administratie" onclick="setDomainFilter('administratie', this)">Administrație</button>
+            <button type="button" class="filter-pill" data-domain="agricultura" onclick="setDomainFilter('agricultura', this)">Agricultură</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bilanț Rapid al Căutării -->
+      <section class="search-summary-card" id="search-summary-card" aria-label="Bilanț rapid al căutării">
+        <div class="summary-metrics">
+          <div class="summary-stat">
+            <span class="summary-stat-label">Plăți Cumulate 2025 (rezultate găsite)</span>
+            <span class="summary-stat-val tabular-nums" id="summary-total-2025">4.892.354 lei</span>
+          </div>
+          <div class="summary-stat">
+            <span class="summary-stat-label">Evoluție vs. 2022</span>
+            <span class="summary-stat-val tabular-nums" id="summary-evo-2022" style="color: var(--finance-positive);">+59,8%</span>
+          </div>
+          <div class="summary-stat analytic-only">
+            <span class="summary-stat-label">Indicatori SQL potriviți</span>
+            <span class="summary-stat-val tabular-nums" id="summary-count-stat">3</span>
+          </div>
+        </div>
+        <div class="summary-actions">
+          <button type="button" class="btn-csv-export" onclick="exportFilteredCSV()">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportă rezultatele CSV
+          </button>
+          <button type="button" class="btn-json-export analytic-only" onclick="exportFilteredJSON()">
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Export JSON
+          </button>
+        </div>
+      </section>
+
+      <!-- Rezultate -->
+      <div class="results-count" id="results-count">3 rezultate găsite în fișierele oficiale:</div>
+      <div id="results-container"></div>
+
+    </div>
+  </main>
+
+  <!-- STAREA LOADING: SKELETONS -->
+  <main id="state-loading" class="state-view">
+    <div class="container">
+      <div class="skeleton" style="width: 100%; height: 180px; margin-bottom: 24px;"></div>
+      <div class="skeleton" style="width: 100%; height: 120px; margin-bottom: 16px;"></div>
+      <div class="skeleton" style="width: 100%; height: 120px; margin-bottom: 16px;"></div>
+    </div>
+  </main>
+
+  <!-- STAREA EMPTY -->
+  <main id="state-empty" class="state-view">
+    <div class="container">
+      <div style="text-align: center; padding: 64px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); max-width: 600px; margin: 40px auto;">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--fg-muted); margin-bottom: 16px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Niciun rezultat găsit</h2>
+        <p style="font-size: 14px; color: var(--fg-muted); margin-bottom: 20px;">Nu am identificat niciun indicator bugetar care să conțină termenii căutați în execuțiile anilor 2022, 2024 sau 2025.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Resetează căutarea</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- STAREA ERROR -->
+  <main id="state-error" class="state-view">
+    <div class="container">
+      <div style="text-align: center; padding: 64px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); max-width: 600px; margin: 40px auto;">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--finance-critical); margin-bottom: 16px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <h2 style="font-size: 20px; font-weight: 700; color: var(--finance-critical); margin-bottom: 8px;">Eroare la căutarea Full-Text</h2>
+        <p style="font-size: 14px; color: var(--fg-muted); margin-bottom: 20px;">Indicele de căutare PostgreSQL nu a răspuns la timp. Reîncearcă interogarea.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Reîncearcă</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ── Toast notifications (replaces alert()) ── */
+    function showToast(msg, type) {
+      type = type || 'success';
+      var t = document.createElement('div');
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
+      t.setAttribute('aria-atomic', 'true');
+      t.style.cssText = [
+        'position:fixed;bottom:24px;right:24px;z-index:9999',
+        'padding:12px 20px;border-radius:var(--radius-lg,8px)',
+        'font-size:14px;font-weight:600;max-width:380px',
+        'box-shadow:var(--shadow-lg);transition:opacity 300ms ease',
+        'font-family:var(--font-sans)'
+      ].join(';');
+      t.style.background = type === 'success' ? 'var(--finance-positive)'
+                         : type === 'warn'    ? 'var(--finance-warning)'
+                         :                      'var(--brand-primary-fixed)';
+      t.style.color = 'var(--color-white)';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() {
+        t.style.opacity = '0';
+        setTimeout(function() { if (t.parentNode) t.remove(); }, 350);
+      }, 3200);
+    }
+
+    const indicators = [
+      {
+        code: 'CAP. 84.02.03.03 · TITLU 71',
+        citizenTag: 'Drumuri și Transporturi · Investiții',
+        title: 'Străzi — Modernizare și reabilitare rețea stradală în Șura Mare și Hamba',
+        desc: 'Lucrări de asfaltare, rigole, trotuare și modernizare infrastructură rutieră comunală (transport metropolitan DN14).',
+        section: 'investitii',
+        domain: 'drumuri',
+        badge: 'Investiții (Active Nefinanciare)',
+        thumb: '../assets/buz.jpg',
+        v22: 1313050, v24: 1338317, v25: 1384807, exec25: 21.5,
+        y22: '1.313.050 lei', y22sub: 'Prevăzut: 2.529.230 lei (51,9%)',
+        y24: '1.338.317 lei', y24sub: 'Prevăzut: 1.380.570 lei (96,9%)',
+        y25: '1.384.807 lei', y25sub: 'Prevăzut: 6.454.560 lei (21,5%)'
+      },
+      {
+        code: 'CAP. 84.02.03.01 · TITLU 20',
+        citizenTag: 'Drumuri și Poduri · Întreținere',
+        title: 'Drumuri și poduri — Întreținere curentă și reparații străzi',
+        desc: 'Pietruire, deszăpezire pe timp de iarnă, marcaje rutiere și întreținere semnalizare rutieră.',
+        section: 'functionare',
+        domain: 'drumuri',
+        badge: 'Funcționare (Bunuri & Servicii)',
+        thumb: '../assets/sura_mare_de_sus.jpg',
+        v22: 245890, v24: 312400, v25: 410500, exec25: 85.5,
+        y22: '245.890 lei', y22sub: 'Execuție: 88,4%',
+        y24: '312.400 lei', y24sub: 'Execuție: 91,2%',
+        y25: '410.500 lei', y25sub: 'Prevăzut: 480.117 lei (85,5%)'
+      },
+      {
+        code: 'CAP. 70.02.06 · TITLU 71',
+        citizenTag: 'Iluminat & Parc Hamba · Investiții',
+        title: 'Iluminat public stradal pe rețeaua de străzi comunale și parc Hamba',
+        desc: 'Extindere corpuri de iluminat LED eficiente energetic și amenajare parc recreativ în satul Hamba.',
+        section: 'investitii',
+        domain: 'iluminat',
+        badge: 'Investiții (Extindere Rețele)',
+        thumb: '../assets/parc.jpg',
+        v22: 1502781, v24: 1641664, v25: 3097047, exec25: 27.5,
+        y22: '1.502.781 lei', y22sub: 'Execuție: 85,8%',
+        y24: '1.641.664 lei', y24sub: 'Execuție: 52,6%',
+        y25: '3.097.047 lei', y25sub: 'Prevăzut: 11.244.510 lei (27,5%)'
+      },
+      {
+        code: 'CAP. 65.02 · TITLU 71 & 01',
+        citizenTag: 'Educație și Cultură · Școli',
+        title: 'Învățământ — Școala Gimnazială și Grădinița Șura Mare & Hamba',
+        desc: 'Cheltuieli materiale, burse, transport școlar și dotări de capital pentru unitățile de învățământ.',
+        section: 'investitii',
+        domain: 'educatie',
+        badge: 'Educație & Cultură (79,9%)',
+        thumb: '../assets/scoala3.jpeg',
+        v22: 2213494, v24: 4784948, v25: 6990775, exec25: 79.9,
+        y22: '2.213.494 lei', y22sub: 'Execuție: 81,9%',
+        y24: '4.784.948 lei', y24sub: 'Execuție: 74,2%',
+        y25: '6.990.775 lei', y25sub: 'Prevăzut: 8.747.770 lei (79,9%)'
+      },
+      {
+        code: 'CAP. 74.02 · TITLU 71 & 60',
+        citizenTag: 'Apă, Canalizare și Mediu',
+        title: 'Canalizare și salubritate — Protecția mediului și rețele apă-canal',
+        desc: 'Extindere rețea apă și canalizare menajeră, servicii de colectare selectivă a deșeurilor.',
+        section: 'investitii',
+        domain: 'apa',
+        badge: 'Apă, Canalizare & Mediu',
+        thumb: '../assets/sura_mare_de_sus.jpg',
+        v22: 1285687, v24: 4931686, v25: 4815990, exec25: 30.0,
+        y22: '1.285.687 lei', y22sub: 'Execuție: 92,2%',
+        y24: '4.931.686 lei', y24sub: 'Execuție: 44,1%',
+        y25: '4.815.990 lei', y25sub: 'Prevăzut: 16.069.870 lei (30,0%)'
+      },
+      {
+        code: 'CAP. 68.02 & 66.02 · TITLU 57',
+        citizenTag: 'Asistență Socială & Sănătate',
+        title: 'Asigurări și asistență socială — Asistenți personali și indemnizații',
+        desc: 'Indemnizații pentru persoanele cu dizabilități, asistenți personali, ajutoare sociale și servicii medicale locale.',
+        section: 'functionare',
+        domain: 'social',
+        badge: 'Social & Sănătate (98,9%)',
+        svgThumb: true,
+        v22: 2778244, v24: 4450956, v25: 5037989, exec25: 98.9,
+        y22: '2.778.244 lei', y22sub: 'Execuție: 96,4%',
+        y24: '4.450.956 lei', y24sub: 'Execuție: 97,8%',
+        y25: '5.037.989 lei', y25sub: 'Prevăzut: 5.093.640 lei (98,9%)'
+      },
+      {
+        code: 'CAP. 51.02 & 61.02 · TITLU 10 & 20',
+        citizenTag: 'Administrație & Ordine Publică',
+        title: 'Autorități executive — Funcționarea Primăriei Șura Mare și Consiliul Local',
+        desc: 'Cheltuieli de personal administrativ, servicii informatice, ordine publică și situații de urgență.',
+        section: 'functionare',
+        domain: 'administratie',
+        badge: 'Funcționare (Administrație)',
+        thumb: '../assets/primarie.jpg',
+        v22: 4757683, v24: 3603591, v25: 3899865, exec25: 91.1,
+        y22: '4.757.683 lei', y22sub: 'Execuție: 93,1%',
+        y24: '3.603.591 lei', y24sub: 'Execuție: 89,5%',
+        y25: '3.899.865 lei', y25sub: 'Prevăzut: 4.280.020 lei (91,1%)'
+      },
+      {
+        code: 'CAP. 83.02 · TITLU 20 & 71',
+        citizenTag: 'Agricultură & Producători Locali',
+        title: 'Agricultură — Cadastru funciar, pășunat comunal și târg producători',
+        desc: 'Lucrări de cadastru agricol, gestionare pășuni comunale și susținerea târgului local de flori și producători.',
+        section: 'investitii',
+        domain: 'agricultura',
+        badge: 'Agricultură & Economie',
+        thumb: '../assets/teren2.jpeg',
+        v22: 88400, v24: 112300, v25: 127783, exec25: 62.1,
+        y22: '88.400 lei', y22sub: 'Execuție: 74,0%',
+        y24: '112.300 lei', y24sub: 'Execuție: 68,5%',
+        y25: '127.783 lei', y25sub: 'Prevăzut: 205.690 lei (62,1%)'
+      }
+    ];
+
+    let activeHorizon = 'all';
+    let activeSection = 'all';
+    let activeDomain = 'all';
+    let lastFiltered = [];
+
+    function highlight(text, q) {
+      if (!q) return text;
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+    }
+
+    function setHorizonFilter(val, btn) {
+      activeHorizon = val;
+      document.querySelectorAll('#horizon-pills .filter-pill').forEach(p => p.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      filterResults();
+    }
+
+    function setSectionFilter(val, btn) {
+      activeSection = val;
+      document.querySelectorAll('#section-pills .filter-pill').forEach(p => p.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      filterResults();
+    }
+
+    function setDomainFilter(val, btn) {
+      activeDomain = val;
+      document.querySelectorAll('#domain-pills .filter-pill').forEach(p => p.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      filterResults();
+    }
+
+    function execColor(pct) {
+      if (pct >= 80) return 'var(--finance-positive)';
+      if (pct >= 30) return 'var(--finance-warning)';
+      return 'var(--finance-critical)';
+    }
+
+    function filterResults() {
+      const q = document.getElementById('search-input').value.trim().toLowerCase();
+
+      const filtered = indicators.filter(item => {
+        const hay = (item.code + ' ' + item.title + ' ' + item.desc + ' ' + item.citizenTag).toLowerCase();
+        const matchQ = !q || hay.includes(q);
+        const matchSec = activeSection === 'all' || item.section === activeSection;
+        const matchDom = activeDomain === 'all' || item.domain === activeDomain;
+        return matchQ && matchSec && matchDom;
+      });
+
+      lastFiltered = filtered;
+
+      const sum25 = filtered.reduce((acc, it) => acc + it.v25, 0);
+      const sum22 = filtered.reduce((acc, it) => acc + it.v22, 0);
+      const evoPct = sum22 > 0 ? ((sum25 - sum22) / sum22) * 100 : 0;
+      const evoSign = evoPct >= 0 ? '+' : '';
+      const evoEl = document.getElementById('summary-evo-2022');
+      document.getElementById('summary-total-2025').textContent = sum25.toLocaleString('ro-RO') + ' lei';
+      evoEl.textContent = filtered.length > 0 ? `${evoSign}${evoPct.toFixed(1).replace('.', ',')}%` : '—';
+      evoEl.style.color = evoPct >= 0 ? 'var(--finance-positive)' : 'var(--finance-critical)';
+      document.getElementById('summary-count-stat').textContent = filtered.length;
+
+      document.getElementById('results-count').textContent =
+        `${filtered.length} ${filtered.length === 1 ? 'rezultat găsit' : 'rezultate găsite'}${q ? ` pentru „${q}”` : ''} în fișierele oficiale:`;
+
+      const container = document.getElementById('results-container');
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:48px 20px; background:var(--bg-surface); border:1px solid var(--border-default); border-radius:var(--radius-xl);">
+            <p style="font-weight:700; margin-bottom:6px;">Niciun indicator nu corespunde filtrului curent.</p>
+            <button class="btn-toggle active" onclick="resetAllFilters()">Afișează toți indicatorii</button>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => {
+        const isInv = item.section === 'investitii';
+        const badgeStyle = isInv
+          ? 'background: var(--dual-investment-bg); color: var(--dual-investment);'
+          : 'background: var(--dual-operating-bg); color: var(--dual-operating);';
+        const barCol = execColor(item.exec25);
+        const mediaEl = item.svgThumb
+          ? `<div class="result-thumb-svg" title="Asistență Socială &amp; Sănătate">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+              </svg>
+            </div>`
+          : `<img src="${item.thumb}" alt="${item.title}" class="result-thumb">`;
+
+        const show22 = activeHorizon === 'all' || activeHorizon === '2022';
+        const show24 = activeHorizon === 'all' || activeHorizon === '2024';
+        const show25 = activeHorizon === 'all' || activeHorizon === '2025';
+        const colsCount = [show22, show24, show25].filter(Boolean).length;
+
+        return `
+          <article class="result-card">
+            <div class="result-top-row">
+              ${mediaEl}
+              <div class="result-main-info">
+                <div class="result-header">
+                  <div>
+                    <span class="result-code-tag analytic-only">${item.code}</span>
+                    <span class="result-citizen-tag citizen-only">${item.citizenTag}</span>
+                    <h2 class="result-title">${highlight(item.title, q)}</h2>
+                  </div>
+                  <span class="result-domain-badge" style="${badgeStyle}">${item.badge}</span>
+                </div>
+                <p style="font-size: 13px; color: var(--fg-muted);">${highlight(item.desc, q)}</p>
+              </div>
+            </div>
+
+            <div class="multi-year-grid" style="grid-template-columns: repeat(${colsCount}, 1fr);">
+              ${show22 ? `
+              <div class="multi-year-col ${activeHorizon === '2022' ? 'year-highlight' : ''}">
+                <span class="col-yr">Anul 2022</span>
+                <span class="col-sum tabular-nums">${item.y22} plăți</span>
+                <span class="col-rate tabular-nums">${item.y22sub}</span>
+              </div>` : ''}
+              ${show24 ? `
+              <div class="multi-year-col ${activeHorizon === '2024' ? 'year-highlight' : ''}">
+                <span class="col-yr">Anul 2024</span>
+                <span class="col-sum tabular-nums">${item.y24} plăți</span>
+                <span class="col-rate tabular-nums">${item.y24sub}</span>
+              </div>` : ''}
+              ${show25 ? `
+              <div class="multi-year-col ${activeHorizon === '2025' ? 'year-highlight' : ''}">
+                <span class="col-yr">Anul 2025</span>
+                <span class="col-sum tabular-nums" style="color: var(--brand-primary);">${item.y25} plăți</span>
+                <span class="col-rate tabular-nums">${item.y25sub}</span>
+              </div>` : ''}
+            </div>
+
+            <div class="result-footer-row">
+              <div class="exec-mini-wrap">
+                <span class="exec-mini-label">Execuție 2025:</span>
+                <div class="exec-mini-bar">
+                  <div class="exec-mini-fill" style="width: ${item.exec25}%; background: ${barCol};"></div>
+                </div>
+                <span class="exec-mini-pct tabular-nums" style="color: ${barCol};">${item.exec25.toFixed(1).replace('.', ',')}%</span>
+              </div>
+              <a href="02-explorator.html?domeniu=${item.domain}" class="btn-explorer-link">
+                Vezi în Explorator →
+              </a>
+            </div>
+          </article>`;
+      }).join('');
+    }
+
+    function resetAllFilters() {
+      document.getElementById('search-input').value = '';
+      document.querySelectorAll('.chip').forEach((c, idx, arr) => c.classList.toggle('active', idx === arr.length - 1));
+      setHorizonFilter('all', document.querySelector('#horizon-pills [data-horizon="all"]'));
+      setSectionFilter('all', document.querySelector('#section-pills [data-section="all"]'));
+      setDomainFilter('all', document.querySelector('#domain-pills [data-domain="all"]'));
+    }
+
+    function exportFilteredCSV() {
+      const header = ['Cod', 'Titlu', 'Domeniu', 'Sectiune', 'Plati_2022_RON', 'Plati_2024_RON', 'Plati_2025_RON', 'Executie_2025_Pct'];
+      const rows = lastFiltered.map(r => [
+        `"${r.code}"`, `"${r.title.replace(/"/g, '""')}"`, r.domain, r.section, r.v22, r.v24, r.v25, r.exec25
+      ].join(','));
+      const csv = [header.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cautare_buget_sura_mare_2025.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportFilteredJSON() {
+      const json = JSON.stringify(lastFiltered, null, 2);
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cautare_buget_sura_mare_2025.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function setQuery(term, chipEl) {
+      document.getElementById('search-input').value = term;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      if (chipEl) chipEl.classList.add('active');
+      filterResults();
+    }
+
+    function setViewMode(mode) {
+      document.body.classList.toggle('mode-citizen', mode === 'citizen');
+      document.body.classList.toggle('mode-analytic', mode === 'analytic');
+      document.querySelectorAll('[data-view-mode]').forEach(b => {
+        b.classList.toggle('mode-active', b.dataset.viewMode === mode);
+      });
+    }
+
+    function selectYear(yr) {
+      document.querySelectorAll('[data-year]').forEach(b => b.classList.toggle('active', b.dataset.year === yr));
+    }
+
+    function switchState(stateName) {
+      document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
+      document.getElementById('state-' + stateName).classList.add('active');
+      document.querySelectorAll('.mock-toolbar .btn-toggle[data-state]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.state === stateName);
+      });
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const btn = document.getElementById('theme-btn');
+      btn.innerHTML = isDark
+        ? '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Light Mode'
+        : '<svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg> Dark Mode';
+    }
+
+    filterResults();
+  </script>
+</body>
+</html>

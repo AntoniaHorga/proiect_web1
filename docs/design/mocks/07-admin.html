@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ro" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-007 · Panou de Administrare & Reconciliere — Șura Mare</title>
+  <style>
+    /* Design Tokens din docs/design/DESIGN.md */
+    :root {
+      --font-sans: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+      --bg-app: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-surface-subtle: #F1F5F9;
+      --fg-default: #0F172A;
+      --fg-muted: #475569;
+      --fg-subtle: #64748B;
+      --border-default: #E2E8F0;
+      --border-subtle: #F1F5F9;
+
+      --brand-primary: #0F3B9D;
+      --brand-primary-hover: #0C2F7D;
+      --brand-gold: #A16207;
+      --brand-gold-bg: #DFD400;
+      --brand-gold-subtle: #FEF9C3;
+
+      --finance-positive: #15803D;
+      --finance-positive-bg: #DCFCE7;
+      --finance-warning: #B45309;
+      --finance-warning-bg: #FEF3C7;
+      --finance-critical: #B91C1C;
+      --finance-critical-bg: #FEE2E2;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+      --radius-full: 9999px;
+    
+      /* Fixed brand colours — invariant across themes */
+      --brand-primary-fixed: #0F3B9D;
+      --brand-gold-fixed: #DFD400;
+      --color-white: #FFFFFF;
+
+      /* Chart tokens (ECharts) */
+      --chart-forecast: #60A5FA;
+      --chart-actual: #0F3B9D;
+      --chart-stacked-operating: #334155;
+      --chart-stacked-investment: #0284C7;
+
+      /* Focus ring (WCAG 2.1 §2.4.7) */
+      --focus-ring: 0 0 0 3px rgba(15, 59, 157, 0.5);
+
+      /* Derived brand shadow */
+      --shadow-brand: 0 4px 14px rgba(15, 59, 157, 0.25);
+
+      /* Mock toolbar badge (fixed UI chrome) */
+      --badge-mock-bg: #15803D;
+    }
+
+    html.dark {
+      --bg-app: #0B0F17;
+      --bg-surface: #111827;
+      --bg-surface-subtle: #1F2937;
+      --fg-default: #F8FAFC;
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --border-default: #374151;
+      --border-subtle: #1F2937;
+
+      --brand-primary: #60A5FA;
+      --brand-primary-hover: #93C5FD;
+      --brand-gold: #FACC15;
+      --brand-gold-bg: #854D0E;
+      --brand-gold-subtle: #422006;
+
+      --finance-positive: #4ADE80;
+      --finance-positive-bg: #052E16;
+      --finance-warning: #FBBF24;
+      --finance-warning-bg: #451A03;
+      --finance-critical: #F87171;
+      --finance-critical-bg: #450A0A;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --chart-forecast: #93C5FD;
+      --chart-actual: #60A5FA;
+      --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--fg-default);
+      line-height: 1.5;
+      transition: background-color 200ms ease, color 200ms ease;
+    }
+
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    .font-mono { font-family: var(--font-mono); }
+
+    body.mode-citizen .analytic-only { display: none !important; }
+    body.mode-analytic .citizen-only { display: none !important; }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .icon-lg { width: 22px; height: 22px; }
+    .icon-xl { width: 40px; height: 40px; }
+    /* Keyboard focus ring (WCAG 2.1 §2.4.7) */
+    *:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    /* Test Toolbar */
+    .mock-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      font-size: 13px;
+    }
+    .mock-toolbar-left, .mock-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .badge-mock { background: var(--badge-mock-bg); color: var(--color-white); padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700; font-size: 11px; }
+    .btn-toggle {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--fg-default);
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-toggle.active { background: var(--brand-primary-fixed); color: var(--color-white); border-color: var(--brand-primary-fixed); }
+
+    /* Unified Header Nav Oficial Șura Mare: 76px, Stemă curată fără chenar alb */
+    .app-header {
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border-bottom: 3px solid var(--brand-gold-fixed);
+      min-height: 76px;
+      padding: 0 24px;
+      box-shadow: var(--shadow-brand);
+      display: flex;
+      align-items: center;
+    }
+    .header-content {
+      width: 100%;
+      max-width: 1340px;
+      margin: 0 auto;
+      min-height: 73px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .brand-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--color-white); flex-shrink: 0; }
+    .crest-img {
+      height: 50px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+    }
+    .brand-title { font-weight: 800; font-size: 16px; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-sub { font-size: 10.5px; color: var(--brand-gold-fixed); font-weight: 700; letter-spacing: 0.6px; margin-top: 2px; }
+    .nav-links { display: flex; align-items: center; gap: 2px; list-style: none; }
+    .nav-link {
+      text-decoration: none;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 8px 11px;
+      border-radius: var(--radius-md);
+      transition: all 150ms ease;
+      position: relative;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--color-white); background: rgba(255, 255, 255, 0.14); }
+    .nav-link.active { color: var(--color-white); font-weight: 700; background: rgba(0, 0, 0, 0.22); }
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: -18px;
+      left: 10px;
+      right: 10px;
+      height: 3px;
+      background: var(--brand-gold-fixed);
+      border-radius: 2px 2px 0 0;
+    }
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .pill-switch {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.28);
+      padding: 3px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      gap: 2px;
+    }
+    .pill-btn {
+      border: none;
+      background: transparent;
+      padding: 5px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.85);
+      transition: all 150ms ease;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .pill-btn:hover { color: var(--color-white); }
+    .pill-btn.active { background: var(--brand-gold-fixed); color: var(--fg-default); box-shadow: var(--shadow-sm); }
+    .pill-btn.mode-active { background: var(--color-white); color: var(--brand-primary-fixed); box-shadow: var(--shadow-sm); }
+    .admin-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 11px;
+      background: rgba(0, 0, 0, 0.32);
+      border: 1px solid rgba(223, 212, 0, 0.45);
+      border-radius: var(--radius-md);
+      color: var(--color-white);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .admin-pill:hover { background: rgba(0, 0, 0, 0.45); }
+
+    /* Admin Container */
+    .container { max-width: 1300px; margin: 0 auto; padding: 28px 24px 64px 24px; }
+    .admin-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; margin-bottom: 24px; }
+    .admin-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-default);
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      text-align: center;
+      background: var(--bg-surface-subtle);
+      cursor: pointer;
+      transition: all 150ms ease;
+      margin-bottom: 16px;
+    }
+    .upload-zone:hover { border-color: var(--brand-primary); background: rgba(15, 59, 157, 0.04); }
+    .upload-icon { color: var(--brand-primary); margin-bottom: 8px; }
+
+    .recon-box {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .recon-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      margin-bottom: 12px;
+    }
+    .status-discrepancy {
+      background: var(--finance-critical-bg);
+      color: var(--finance-critical);
+      border: 1px solid rgba(185, 28, 28, 0.3);
+    }
+
+    .textarea-reason {
+      width: 100%;
+      min-height: 70px;
+      padding: 10px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      background: var(--bg-surface);
+      color: var(--fg-default);
+      resize: vertical;
+      margin-top: 6px;
+    }
+    .textarea-reason:focus { outline: none; border-color: var(--brand-primary-fixed); }
+
+    .btn-action-primary {
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border: none;
+      padding: 10px 18px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-action-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-action-danger {
+      background: var(--bg-surface);
+      border: 1px solid var(--finance-critical);
+      color: var(--finance-critical);
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-action-danger:hover { background: var(--finance-critical); color: var(--color-white); }
+    .btn-action-success {
+      background: var(--finance-positive);
+      color: var(--color-white);
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .moderation-item {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mod-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+    .mod-author { font-weight: 700; color: var(--fg-default); }
+    .mod-badge { background: var(--brand-gold-subtle); color: var(--brand-gold); padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700; font-size: 12px; }
+
+    .ins-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ins-table th, .ins-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-default); text-align: left; }
+    .ins-input {
+      width: 100px;
+      padding: 5px 8px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      background: var(--bg-surface);
+      color: var(--fg-default);
+    }
+
+    /* States */
+    .state-view { display: none; }
+    .state-view.active { display: block; }
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-surface-subtle) 25%, var(--border-default) 50%, var(--bg-surface-subtle) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-md);
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    @media (max-width: 1120px) {
+      .header-content { flex-wrap: wrap; padding: 10px 0; }
+      .nav-link.active::after { bottom: -6px; }
+      .admin-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .nav-links { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body class="mode-analytic">
+
+  <!-- Mockup Toolbar Testare -->
+  <div class="mock-toolbar">
+    <div class="mock-toolbar-left">
+      <span class="badge-mock">DS-007 · APPROVED</span>
+      <strong>07-admin.html</strong> — Panou de Administrare &amp; Reconciliere (<code>/admin</code>)
+    </div>
+    <div class="mock-toolbar-right">
+      <span>Stare:</span>
+      <button class="btn-toggle active" data-state="normal" onclick="switchState('normal')">Normal</button>
+      <button class="btn-toggle" data-state="loading" onclick="switchState('loading')">Loading (Skeleton)</button>
+      <button class="btn-toggle" data-state="empty" onclick="switchState('empty')">Empty</button>
+      <button class="btn-toggle" data-state="error" onclick="switchState('error')">Error</button>
+      <div style="height: 16px; width: 1px; background: var(--border-default);"></div>
+      <button class="btn-toggle" id="theme-btn" onclick="toggleTheme()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        Dark Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- Header Navigație Oficială Șura Mare -->
+  <header class="app-header">
+    <div class="header-content">
+      <a href="01-dashboard.html" class="brand-logo">
+        <img src="../assets/stema-sura-mare.png" alt="Stema Comunei Șura Mare" class="crest-img">
+        <div>
+          <div class="brand-title">COMUNA ȘURA MARE</div>
+          <div class="brand-sub">PANOU DE ADMINISTRARE BUGETAR</div>
+        </div>
+      </a>
+
+      <nav aria-label="Navigație principală">
+        <ul class="nav-links">
+          <li><a href="01-dashboard.html" class="nav-link">Tablou de Bord</a></li>
+          <li><a href="02-explorator.html" class="nav-link">Explorator Buget</a></li>
+          <li><a href="03-cautare.html" class="nav-link">Căutare</a></li>
+          <li><a href="04-comparatii.html" class="nav-link">Comparații An/An</a></li>
+          <li><a href="05-audit.html" class="nav-link">Metodologie &amp; Audit</a></li>
+          <li><a href="07-admin.html" class="nav-link active">Administrare</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <div class="pill-switch" role="group" aria-label="Mod vizualizare">
+          <button class="pill-btn" data-view-mode="citizen" onclick="setViewMode('citizen')">Mod Cetățean</button>
+          <button class="pill-btn mode-active" data-view-mode="analytic" onclick="setViewMode('analytic')">Mod Analitic</button>
+        </div>
+        <div class="pill-switch" role="group" aria-label="Selectare an bugetar">
+          <button class="pill-btn" data-year="2022" onclick="selectYear('2022')">2022</button>
+          <button class="pill-btn" data-year="2024" onclick="selectYear('2024')">2024</button>
+          <button class="pill-btn active" data-year="2025" onclick="selectYear('2025')">2025</button>
+        </div>
+        <a href="06-auth.html" class="admin-pill">
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--brand-gold-fixed);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Admin Primărie
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- STAREA NORMALĂ -->
+  <main id="state-normal" class="state-view active">
+    <div class="container">
+
+      <div class="admin-grid">
+
+        <!-- Coloana 1: Asistent Import & Reconciliere -->
+        <section class="admin-card">
+          <h1 class="card-title">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import Fișier &amp; Raport de Reconciliere
+          </h1>
+
+          <div class="upload-zone" onclick=\"showToast('Selectează fișier .xlsx sau .csv...')\">
+            <svg class="icon-xl upload-icon" viewBox="0 0 24 24"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 2px;">Trage fișierul XLSX/CSV aici sau dă click</div>
+            <div style="font-size: 12px; color: var(--fg-muted);">Fișier încărcat curent: <strong>cheltuieli2025.xlsx</strong> (63 KB)</div>
+          </div>
+
+          <div class="recon-box">
+            <div class="recon-status-badge status-discrepancy">
+              <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/></svg>
+              DISCREPANȚĂ DETECTATĂ (&gt; ±1,00 leu)
+            </div>
+
+            <div style="font-size: 13px; display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--fg-muted);">Total Raportat Oficial (5002):</span>
+                <strong class="tabular-nums">48.258.490,00 lei</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--fg-muted);">Total Calculat din Linii:</span>
+                <strong class="tabular-nums">48.225.421,00 lei</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border-default); padding-top: 4px;">
+                <span style="color: var(--finance-critical); font-weight: 700;">Diferență neacoperită:</span>
+                <strong class="tabular-nums" style="color: var(--finance-critical);">+33.069,00 lei</strong>
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size: 12px; font-weight: 700; color: var(--fg-default); display: flex; justify-content: space-between;">
+                <span>Justificare textuală obligatorie a discrepanței (minim 20 caractere):</span>
+                <span id="char-count" class="tabular-nums" style="color: var(--finance-positive);">91/20 caractere</span>
+              </label>
+              <textarea id="reason-text" class="textarea-reason" oninput="updateCharCount()">Suma de -33.069 lei reprezintă recuperarea de plăți din anii precedenți conform Titlului 85.</textarea>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn-action-danger" onclick=\"showToast('Lot respins!')\">Respinge fișierul</button>
+            <button class="btn-action-primary" id="btn-publish" onclick=\"showToast('Bugetul anului 2025 a fost publicat pe live cu justificarea înregistrată!')\">
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              Publică Bugetul pe Live
+            </button>
+          </div>
+        </section>
+
+        <!-- Coloana 2: Coada de Moderare Adnotări Cetățenești -->
+        <section class="admin-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-default);">
+            <h2 style="font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Moderare Adnotări Cetățenești
+            </h2>
+            <span class="mod-badge">1 În Așteptare</span>
+          </div>
+
+          <div class="moderation-item">
+            <div class="mod-header">
+              <span class="mod-author">Radu I. (Cetățean Șura Mare)</span>
+              <span class="tabular-nums" style="color: var(--fg-muted);">18 Nov 2026, 14:20</span>
+            </div>
+            <div style="font-size: 11px; font-family: var(--font-mono); color: var(--brand-primary); font-weight: 700;">
+              Pe Capitolul 84.02.03.03 (Străzi)
+            </div>
+            <p style="font-size: 13px; line-height: 1.4;">
+              „Există un termen stabilit pentru finalizarea rigolelor de pe strada Nouă din Hamba? Lucrările par blocate de 3 luni.”
+            </p>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+              <button class="btn-action-danger" onclick=\"showToast('Adnotare respinsă!')\">Respinge</button>
+              <button class="btn-action-success" onclick=\"showToast('Adnotare aprobată și publicată!')\">Aprobă Public</button>
+            </div>
+          </div>
+
+          <div style="text-align: center; padding: 12px; font-size: 12px; color: var(--fg-muted);">
+            Toate celelalte adnotări au fost procesate.
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Secțiunea 3: Configurare Indicatori Locali (locality_stats / Q-002) -->
+      <section class="admin-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-default);">
+          <h2 style="font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Indicatori Macroeconomici & Demografici (INS Tempo Online — <code>locality_stats</code>)
+          </h2>
+          <button class="btn-action-primary" onclick=\"showToast('Indicatorii INS au fost salvați în baza de date PostgreSQL!')\">
+            Salvează Indicatori
+          </button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="ins-table">
+            <thead>
+              <tr>
+                <th>An Bugetar</th>
+                <th>Populație Rezidentă (INS)</th>
+                <th>Indicele Prețurilor de Consum (IPC %)</th>
+                <th>Sursă de Date</th>
+                <th>Ultima Actualizare</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>2022</strong></td>
+                <td><input type="number" class="ins-input tabular-nums" value="4860"> loc.</td>
+                <td><input type="number" step="0.1" class="ins-input tabular-nums" value="100.0"> % (Bază)</td>
+                <td>INS Tempo Online (Tabel POP105A)</td>
+                <td class="tabular-nums" style="color: var(--fg-muted);">15 Nov 2026</td>
+              </tr>
+              <tr>
+                <td><strong>2024</strong></td>
+                <td><input type="number" class="ins-input tabular-nums" value="5120"> loc.</td>
+                <td><input type="number" step="0.1" class="ins-input tabular-nums" value="124.3"> %</td>
+                <td>INS Tempo Online (Tabel IPC101)</td>
+                <td class="tabular-nums" style="color: var(--fg-muted);">15 Nov 2026</td>
+              </tr>
+              <tr>
+                <td><strong>2025</strong></td>
+                <td><input type="number" class="ins-input tabular-nums" value="5240"> loc.</td>
+                <td><input type="number" step="0.1" class="ins-input tabular-nums" value="131.8"> %</td>
+                <td>INS Tempo Online (Prognoză / IPC 2025)</td>
+                <td class="tabular-nums" style="color: var(--fg-muted);">18 Nov 2026</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- STAREA LOADING: SKELETONS -->
+  <main id="state-loading" class="state-view">
+    <div class="container">
+      <div class="skeleton" style="width: 100%; height: 260px; margin-bottom: 24px;"></div>
+      <div class="skeleton" style="width: 100%; height: 200px;"></div>
+    </div>
+  </main>
+
+  <!-- STAREA EMPTY -->
+  <main id="state-empty" class="state-view">
+    <div class="container">
+      <div style="text-align: center; padding: 64px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); max-width: 600px; margin: 40px auto;">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--fg-muted); margin-bottom: 16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Niciun fișier în așteptare</h2>
+        <p style="font-size: 14px; color: var(--fg-muted); margin-bottom: 20px;">Toate fișierele de buget încărcate sunt reconciliate și publicate pe live.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Resetează</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- STAREA ERROR -->
+  <main id="state-error" class="state-view">
+    <div class="container">
+      <div style="text-align: center; padding: 64px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); max-width: 600px; margin: 40px auto;">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--finance-critical); margin-bottom: 16px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <h2 style="font-size: 20px; font-weight: 700; color: var(--finance-critical); margin-bottom: 8px;">Eroare la parsarea fișierului</h2>
+        <p style="font-size: 14px; color: var(--fg-muted); margin-bottom: 20px;">Fișierul încărcat conține coloane nestructurate sau antet invalid.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Reîncearcă</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ── Toast notifications (replaces alert()) ── */
+    function showToast(msg, type) {
+      type = type || 'success';
+      var t = document.createElement('div');
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
+      t.setAttribute('aria-atomic', 'true');
+      t.style.cssText = [
+        'position:fixed;bottom:24px;right:24px;z-index:9999',
+        'padding:12px 20px;border-radius:var(--radius-lg,8px)',
+        'font-size:14px;font-weight:600;max-width:380px',
+        'box-shadow:var(--shadow-lg);transition:opacity 300ms ease',
+        'font-family:var(--font-sans)'
+      ].join(';');
+      t.style.background = type === 'success' ? 'var(--finance-positive)'
+                         : type === 'warn'    ? 'var(--finance-warning)'
+                         :                      'var(--brand-primary-fixed)';
+      t.style.color = 'var(--color-white)';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() {
+        t.style.opacity = '0';
+        setTimeout(function() { if (t.parentNode) t.remove(); }, 350);
+      }, 3200);
+    }
+
+    function updateCharCount() {
+      const text = document.getElementById('reason-text').value;
+      const countEl = document.getElementById('char-count');
+      const btnPublish = document.getElementById('btn-publish');
+      countEl.textContent = text.length + '/20 caractere';
+      if (text.length >= 20) {
+        countEl.style.color = 'var(--finance-positive)';
+        btnPublish.disabled = false;
+      } else {
+        countEl.style.color = 'var(--finance-critical)';
+        btnPublish.disabled = true;
+      }
+    }
+    function setViewMode(mode) {
+      document.body.classList.toggle('mode-citizen', mode === 'citizen');
+      document.body.classList.toggle('mode-analytic', mode === 'analytic');
+      document.querySelectorAll('[data-view-mode]').forEach(b => {
+        b.classList.toggle('mode-active', b.dataset.viewMode === mode);
+      });
+    }
+    function selectYear(yr) {
+      document.querySelectorAll('[data-year]').forEach(b => b.classList.toggle('active', b.dataset.year === yr));
+    }
+    function switchState(stateName) {
+      document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
+      document.getElementById('state-' + stateName).classList.add('active');
+      document.querySelectorAll('.mock-toolbar .btn-toggle[data-state]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.state === stateName);
+      });
+    }
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const btn = document.getElementById('theme-btn');
+      btn.innerHTML = isDark
+        ? '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Light Mode'
+        : '<svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg> Dark Mode';
+    }
+    updateCharCount();
+  </script>
+</body>
+</html>

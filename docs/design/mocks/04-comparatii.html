@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="ro" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-004 · Comparații An/An & Indicatori Per Capita — Șura Mare</title>
+  <style>
+    /* Design Tokens din docs/design/DESIGN.md */
+    :root {
+      --font-sans: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+      /* Light Theme */
+      --bg-app: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-surface-subtle: #F1F5F9;
+      --fg-default: #0F172A;
+      --fg-muted: #475569;
+      --fg-subtle: #64748B;
+      --border-default: #E2E8F0;
+      --border-subtle: #F1F5F9;
+
+      /* Brand Șura Mare */
+      --brand-primary: #0F3B9D;
+      --brand-primary-hover: #0C2F7D;
+      --brand-gold: #A16207;
+      --brand-gold-bg: #DFD400;
+      --brand-gold-subtle: #FEF9C3;
+
+      /* Semantice financiare */
+      --finance-positive: #15803D;
+      --finance-positive-fixed: #15803D;
+      --finance-positive-bg: #DCFCE7;
+      --finance-warning: #B45309;
+      --finance-warning-bg: #FEF3C7;
+      --finance-critical: #B91C1C;
+      --finance-critical-bg: #FEE2E2;
+
+      /* Dual */
+      --dual-operating: #334155;
+      --dual-operating-bg: #F1F5F9;
+      --dual-investment: #0284C7;
+      --dual-investment-bg: #E0F2FE;
+
+      /* 7 Domenii */
+      --domain-1: #2563EB;
+      --domain-2: #0D9488;
+      --domain-3: #D97706;
+      --domain-4: #7C3AED;
+      --domain-5: #E11D48;
+      --domain-6: #475569;
+      --domain-7: #16A34A;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+      --radius-full: 9999px;
+    
+      /* Fixed brand colours — invariant across themes */
+      --brand-primary-fixed: #0F3B9D;
+      --brand-gold-fixed: #DFD400;
+      --color-white: #FFFFFF;
+
+      /* Chart tokens (ECharts) */
+      --chart-forecast: #60A5FA;
+      --chart-actual: #0F3B9D;
+      --chart-stacked-operating: #334155;
+      --chart-stacked-investment: #0284C7;
+
+      /* Focus ring (WCAG 2.1 §2.4.7) */
+      --focus-ring: 0 0 0 3px rgba(15, 59, 157, 0.5);
+
+      /* Derived brand shadow */
+      --shadow-brand: 0 4px 14px rgba(15, 59, 157, 0.25);
+
+      /* Mock toolbar badge (fixed UI chrome) */
+      --badge-mock-bg: #15803D;
+    }
+
+    html.dark {
+      --bg-app: #0B0F17;
+      --bg-surface: #111827;
+      --bg-surface-subtle: #1F2937;
+      --fg-default: #F8FAFC;
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --border-default: #374151;
+      --border-subtle: #1F2937;
+
+      --brand-primary: #60A5FA;
+      --brand-primary-hover: #93C5FD;
+      --brand-gold: #FACC15;
+      --brand-gold-bg: #854D0E;
+      --brand-gold-subtle: #422006;
+
+      --finance-positive: #4ADE80;
+      --finance-positive-bg: #052E16;
+      --finance-warning: #FBBF24;
+      --finance-warning-bg: #451A03;
+      --finance-critical: #F87171;
+      --finance-critical-bg: #450A0A;
+
+      --dual-operating: #94A3B8;
+      --dual-operating-bg: #1E293B;
+      --dual-investment: #38BDF8;
+      --dual-investment-bg: #082F49;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --chart-forecast: #93C5FD;
+      --chart-actual: #60A5FA;
+      --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--fg-default);
+      line-height: 1.5;
+      transition: background-color 200ms ease, color 200ms ease;
+    }
+
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    .font-mono { font-family: var(--font-mono); }
+
+    body.mode-citizen .analytic-only { display: none !important; }
+    body.mode-analytic .citizen-only { display: none !important; }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .icon-lg { width: 22px; height: 22px; }
+    .icon-xl { width: 40px; height: 40px; }
+    /* Keyboard focus ring (WCAG 2.1 §2.4.7) */
+    *:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    /* Test Toolbar */
+    .mock-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      font-size: 13px;
+    }
+    .mock-toolbar-left, .mock-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .badge-mock {
+      background: var(--finance-positive-fixed);
+      color: var(--color-white);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .btn-toggle {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--fg-default);
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 150ms ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-toggle:hover { border-color: var(--brand-primary); }
+    .btn-toggle.active { background: var(--brand-primary-fixed); color: var(--color-white); border-color: var(--brand-primary-fixed); }
+
+    /* Unified Header Nav Oficial Șura Mare: 76px, Stemă curată fără chenar alb */
+    .app-header {
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border-bottom: 3px solid var(--brand-gold-fixed);
+      min-height: 76px;
+      padding: 0 24px;
+      box-shadow: var(--shadow-brand);
+      display: flex;
+      align-items: center;
+    }
+    .header-content {
+      width: 100%;
+      max-width: 1340px;
+      margin: 0 auto;
+      min-height: 73px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--color-white);
+      flex-shrink: 0;
+    }
+    .crest-img {
+      height: 50px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+    }
+    .brand-title { font-weight: 800; font-size: 16px; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-sub { font-size: 10.5px; color: var(--brand-gold-fixed); font-weight: 700; letter-spacing: 0.6px; margin-top: 2px; }
+    .nav-links { display: flex; align-items: center; gap: 2px; list-style: none; }
+    .nav-link {
+      text-decoration: none;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 8px 11px;
+      border-radius: var(--radius-md);
+      transition: all 150ms ease;
+      position: relative;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--color-white); background: rgba(255, 255, 255, 0.14); }
+    .nav-link.active { color: var(--color-white); font-weight: 700; background: rgba(0, 0, 0, 0.22); }
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: -18px;
+      left: 10px;
+      right: 10px;
+      height: 3px;
+      background: var(--brand-gold-fixed);
+      border-radius: 2px 2px 0 0;
+    }
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .pill-switch {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.28);
+      padding: 3px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      gap: 2px;
+    }
+    .pill-btn {
+      border: none;
+      background: transparent;
+      padding: 5px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.85);
+      transition: all 150ms ease;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .pill-btn:hover { color: var(--color-white); }
+    .pill-btn.active { background: var(--brand-gold-fixed); color: var(--fg-default); box-shadow: var(--shadow-sm); }
+    .pill-btn.mode-active { background: var(--color-white); color: var(--brand-primary-fixed); box-shadow: var(--shadow-sm); }
+    .header-auth-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--color-white);
+      text-decoration: none;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 11px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: var(--radius-md);
+      white-space: nowrap;
+    }
+    .header-auth-btn:hover { background: rgba(255, 255, 255, 0.24); }
+
+    /* Analytic banner */
+    .analytic-strip {
+      background: rgba(15, 59, 157, 0.08);
+      border: 1px solid rgba(15, 59, 157, 0.22);
+      border-radius: var(--radius-lg);
+      padding: 10px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 12.5px;
+    }
+    .code-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-subtle);
+      color: var(--brand-primary);
+    }
+    .btn-mini-export {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      color: var(--fg-default);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 24px 64px 24px;
+    }
+
+    /* Control Panel (Nominal / IPC / Per Capita) */
+    .calc-toggle-panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .mode-switch-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 4px;
+      gap: 4px;
+    }
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--fg-muted);
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 150ms ease;
+    }
+    .mode-btn:hover { color: var(--fg-default); }
+    .mode-btn.active {
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      box-shadow: var(--shadow-sm);
+    }
+    .mode-context-note {
+      width: 100%;
+      font-size: 12px;
+      color: var(--fg-muted);
+      padding-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* Per Capita / Summary Strip */
+    .per-capita-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .per-capita-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .per-capita-card.band-2022 { border-top: 4px solid var(--finance-positive-fixed); }
+    .per-capita-card.band-2024 { border-top: 4px solid var(--domain-3); }
+    .per-capita-card.band-2025 { border-top: 4px solid var(--brand-primary-fixed); }
+    .per-capita-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .pop-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--fg-muted);
+      background: var(--bg-surface-subtle);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .per-capita-value { font-size: 22px; font-weight: 800; color: var(--fg-default); margin-bottom: 4px; }
+
+    /* Our World in Data Chart Cards */
+    .owid-chart-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      padding: 24px 28px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+    }
+    .owid-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .owid-kicker {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--brand-primary);
+      margin-bottom: 4px;
+    }
+    .owid-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--fg-default);
+      line-height: 1.25;
+    }
+    .owid-subtitle {
+      font-size: 13px;
+      color: var(--fg-muted);
+      margin-top: 4px;
+    }
+    .owid-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--fg-default);
+    }
+    .owid-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .owid-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .owid-footer {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11.5px;
+      color: var(--fg-subtle);
+    }
+    .chart-two-col {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    /* Interactive hover on domain lines */
+    .domain-series {
+      transition: opacity 150ms ease;
+      cursor: pointer;
+    }
+    .domain-series.dimmed { opacity: 0.18; }
+
+    /* Collapsible Detailed Table Accordion */
+    .table-accordion {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .table-accordion summary {
+      padding: 18px 24px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      list-style: none;
+      background: var(--bg-surface);
+      color: var(--fg-default);
+    }
+    .table-accordion summary::-webkit-details-marker { display: none; }
+    .table-accordion summary:hover { background: var(--bg-surface-subtle); }
+    .table-accordion[open] summary {
+      border-bottom: 1px solid var(--border-default);
+      background: var(--bg-surface-subtle);
+    }
+    .accordion-chevron {
+      transition: transform 200ms ease;
+    }
+    .table-accordion[open] .accordion-chevron {
+      transform: rotate(180deg);
+    }
+    .table-wrap {
+      padding: 20px 24px;
+      overflow-x: auto;
+    }
+    .comp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    .comp-table th {
+      background: var(--bg-surface-subtle);
+      padding: 11px 14px;
+      font-weight: 700;
+      color: var(--fg-default);
+      border-bottom: 2px solid var(--border-default);
+      white-space: nowrap;
+    }
+    .comp-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border-default);
+      color: var(--fg-default);
+      vertical-align: middle;
+    }
+    .comp-table tr:hover { background: var(--bg-surface-subtle); }
+    .diff-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .diff-up { background: var(--finance-positive-bg); color: var(--finance-positive); }
+    .diff-down { background: var(--finance-critical-bg); color: var(--finance-critical); }
+    .diff-warn { background: var(--finance-warning-bg); color: var(--finance-warning); }
+    .diff-neutral { background: var(--bg-surface-subtle); color: var(--fg-muted); }
+
+    /* States */
+    .state-view { display: none; }
+    .state-view.active { display: block; }
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-surface-subtle) 25%, var(--border-default) 50%, var(--bg-surface-subtle) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-md);
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    @media (max-width: 1120px) {
+      .header-content { flex-wrap: wrap; padding: 10px 0; }
+      .nav-link.active::after { bottom: -6px; }
+      .chart-two-col { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .per-capita-grid { grid-template-columns: 1fr; }
+      .nav-links { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body class="mode-citizen">
+
+  <!-- Mockup Toolbar Testare -->
+  <div class="mock-toolbar">
+    <div class="mock-toolbar-left">
+      <span class="badge-mock">DS-004 · APPROVED</span>
+      <strong>04-comparatii.html</strong> — Comparații An/An &amp; Grafice OWID (<code>/comparatii</code>)
+    </div>
+    <div class="mock-toolbar-right">
+      <span>Stare:</span>
+      <button class="btn-toggle active" data-state="normal" onclick="switchState('normal')">Normal (Date Reale)</button>
+      <button class="btn-toggle" data-state="loading" onclick="switchState('loading')">Loading (Skeleton)</button>
+      <button class="btn-toggle" data-state="empty" onclick="switchState('empty')">Empty</button>
+      <button class="btn-toggle" data-state="error" onclick="switchState('error')">Error</button>
+      <div style="height: 16px; width: 1px; background: var(--border-default);"></div>
+      <button class="btn-toggle" id="theme-btn" onclick="toggleTheme()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        Dark Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- Header Navigație Oficială Șura Mare -->
+  <header class="app-header">
+    <div class="header-content">
+      <a href="01-dashboard.html" class="brand-logo">
+        <img src="../assets/stema-sura-mare.png" alt="Stema Comunei Șura Mare" class="crest-img">
+        <div>
+          <div class="brand-title">COMUNA ȘURA MARE</div>
+          <div class="brand-sub">EXPLORATOR DE BUGET LOCAL</div>
+        </div>
+      </a>
+
+      <nav aria-label="Navigație principală">
+        <ul class="nav-links">
+          <li><a href="01-dashboard.html" class="nav-link">Tablou de Bord</a></li>
+          <li><a href="02-explorator.html" class="nav-link">Explorator Buget</a></li>
+          <li><a href="03-cautare.html" class="nav-link">Căutare</a></li>
+          <li><a href="04-comparatii.html" class="nav-link active">Comparații An/An</a></li>
+          <li><a href="05-audit.html" class="nav-link">Metodologie &amp; Audit</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <div class="pill-switch" role="group" aria-label="Mod vizualizare">
+          <button class="pill-btn mode-active" data-view-mode="citizen" onclick="setViewMode('citizen')">Mod Cetățean</button>
+          <button class="pill-btn" data-view-mode="analytic" onclick="setViewMode('analytic')">Mod Analitic</button>
+        </div>
+        <div class="pill-switch" role="group" aria-label="Selectare an bugetar">
+          <button class="pill-btn" data-year="2022" onclick="selectYear('2022')">2022</button>
+          <button class="pill-btn" data-year="2024" onclick="selectYear('2024')">2024</button>
+          <button class="pill-btn active" data-year="2025" onclick="selectYear('2025')">2025</button>
+        </div>
+        <a href="06-auth.html" class="header-auth-btn">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Elena Popescu
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- STAREA NORMALĂ -->
+  <main id="state-normal" class="state-view active">
+    <div class="container">
+
+      <!-- Banda vizibila doar in Mod Analitic -->
+      <div class="analytic-strip analytic-only">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="code-tag">MOD ANALITIC ACTIV</span>
+          <span>Afișare coduri clasificație (<code class="font-mono">5002</code>, Capitole), serii SQL <code class="font-mono">LAG()</code> și exporturi comparative.</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-mini-export" onclick=\"showToast('Export CSV multi-anual 2022–2025 generat!')\">Export CSV Extins</button>
+          <button class="btn-mini-export" onclick=\"showToast('Export JSON serii temporale generat!')\">Export JSON</button>
+        </div>
+      </div>
+
+      <!-- Panou Comutare Mod Calcul (Nominal / IPC / Per Capita) -->
+      <section class="calc-toggle-panel">
+        <div>
+          <h1 style="font-size: 22px; font-weight: 800; margin-bottom: 4px;">Comparație Bugetară Multi-anuală (2022–2025)</h1>
+          <p style="font-size: 13px; color: var(--fg-muted);">
+            Vizualizări comparative bazate pe datele oficiale ale Comunei Șura Mare și indicatorii INS.
+            <span class="analytic-only code-tag" style="margin-left: 6px;">SQL LAG() OVER (ORDER BY year)</span>
+          </p>
+        </div>
+
+        <div class="mode-switch-group" role="group" aria-label="Mod de exprimare a valorilor">
+          <button class="mode-btn active" id="btn-nom" onclick="setMode('nom')">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Lei Nominali
+          </button>
+          <button class="mode-btn" id="btn-ipc" onclick="setMode('ipc')">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            Ajustat cu Inflația (IPC)
+          </button>
+          <button class="mode-btn" id="btn-pc" onclick="setMode('pc')">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Per Capita (per locuitor)
+          </button>
+        </div>
+
+        <div class="mode-context-note">
+          <span id="mode-explanation">
+            <strong>Mod activ: Lei Nominali</strong> — Sumele exacte raportate în execuțiile bugetare ale Primăriei Șura Mare fără ajustări statistice.
+          </span>
+          <span class="tabular-nums">Populație INS: 4.860 (2022) → 5.120 (2024) → 5.240 (2025) · IPC: 100% → 124,3% → 131,8%</span>
+        </div>
+      </section>
+
+      <!-- Carduri Sinteza Rapida per An (cu banda superioara colorata: verde, auriu, albastru) -->
+      <section class="per-capita-grid" aria-label="Sumar comparativ pe ani">
+        <div class="per-capita-card band-2022">
+          <div class="per-capita-header">
+            <span style="font-weight: 700; font-size: 14px; color: var(--finance-positive);">Anul 2022 · Plăți Totale</span>
+            <span class="pop-badge tabular-nums">4.860 loc. · IPC 100%</span>
+          </div>
+          <div class="per-capita-value tabular-nums" id="sum-2022">12.423.391 lei</div>
+          <div style="font-size: 12px; color: var(--fg-muted);" id="sum-sub-2022">
+            Buget definitiv: 15,34 mil. lei • <span style="color: var(--finance-positive); font-weight: 700;">81,0% execuție</span>
+          </div>
+        </div>
+
+        <div class="per-capita-card band-2024">
+          <div class="per-capita-header">
+            <span style="font-weight: 700; font-size: 14px; color: var(--finance-warning);">Anul 2024 · Plăți Totale</span>
+            <span class="pop-badge tabular-nums">5.120 loc. · IPC 124,3%</span>
+          </div>
+          <div class="per-capita-value tabular-nums" id="sum-2024">18.645.261 lei</div>
+          <div style="font-size: 12px; color: var(--fg-muted);" id="sum-sub-2024">
+            Buget definitiv: 39,61 mil. lei • <span class="diff-badge diff-up tabular-nums">+50,1% vs. 2022</span>
+          </div>
+        </div>
+
+        <div class="per-capita-card band-2025">
+          <div class="per-capita-header">
+            <span style="font-weight: 700; font-size: 14px; color: var(--brand-primary);">Anul 2025 · Plăți Totale</span>
+            <span class="pop-badge tabular-nums">5.240 loc. · IPC 131,8%</span>
+          </div>
+          <div class="per-capita-value tabular-nums" style="color: var(--brand-primary);" id="sum-2025">21.940.279 lei</div>
+          <div style="font-size: 12px; color: var(--fg-muted);" id="sum-sub-2025">
+            Buget definitiv: 48,26 mil. lei • <span class="diff-badge diff-up tabular-nums">+17,7% vs. 2024</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRAFIC 1 (FULL-WIDTH): Bare grupate Previzionat (#D97706) vs Plati (#0F3B9D) 2022-2025 -->
+      <section class="owid-chart-card">
+        <div class="owid-header">
+          <div>
+            <div class="owid-kicker">
+              GRAFIC 1 · EXECUTAREA BUGETULUI TOTAL
+              <span class="analytic-only code-tag" style="margin-left: 6px;">COD 5002</span>
+            </div>
+            <h2 class="owid-title" id="chart1-title">Bugetul aprobat s-a triplat din 2022 până în 2025, dar decalajul față de plățile reale s-a adâncit</h2>
+            <p class="owid-subtitle" id="chart1-subtitle">Comparație între creditele bugetare definitive (previzionat) și plățile efectuate efectiv (mil. lei, valori nominale)</p>
+          </div>
+          <div class="owid-legend">
+            <span class="owid-legend-item"><span class="legend-swatch" style="background: var(--domain-3);"></span> Previzionat (Buget Definitiv)</span>
+            <span class="owid-legend-item"><span class="legend-swatch" style="background: var(--brand-primary-fixed);"></span> Plăți Efective</span>
+            <span class="owid-legend-item"><span class="legend-swatch" style="background: repeating-linear-gradient(45deg, var(--border-default), var(--border-default) 3px, transparent 3px, transparent 6px); border: 1px solid var(--fg-subtle);"></span> 2023 (Date indisponibile)</span>
+          </div>
+        </div>
+
+        <svg class="owid-svg" viewBox="0 0 1120 340" id="svg-chart-1" role="img" aria-label="Grafic bare grupate Previzionat versus Plăți 2022-2025"></svg>
+
+        <div class="owid-footer">
+          <span>Sursa: Execuțiile bugetare ale Comunei Șura Mare (2022, 2024, 2025) · Cod agregat 5002</span>
+          <span>Notă: Anul 2023 lipsește din arhiva publică (raportări parțiale până la luna 09)</span>
+        </div>
+      </section>
+
+      <!-- GRAFICELE 2 & 3: Evolutie liniara 7 domenii + Stacked 100% Functionare vs Investitii -->
+      <div class="chart-two-col">
+
+        <!-- GRAFIC 2: Evolutie liniara pe cele 7 domenii cu etichete directe -->
+        <section class="owid-chart-card" style="margin-bottom: 0;">
+          <div class="owid-header">
+            <div>
+              <div class="owid-kicker">GRAFIC 2 · EVOLUȚIE PE DOMENII CETĂȚENEȘTI</div>
+              <h2 class="owid-title">Educația, Apă-Canalizarea și Asistența Socială conduc plățile din 2025</h2>
+              <p class="owid-subtitle" id="chart2-subtitle">Plăți efectuate pe cele 7 domenii (2022 → 2024 → 2025). Trece cursorul peste o linie pentru evidențiere.</p>
+            </div>
+          </div>
+
+          <svg class="owid-svg" viewBox="0 0 680 380" id="svg-chart-2" role="img" aria-label="Evoluție liniară plăți pe cele 7 domenii"></svg>
+
+          <div class="owid-footer">
+            <span>Linia punctată 2022–2024 marchează lipsa datelor pentru 2023</span>
+            <span>Etichete directe la finalul seriei (2025)</span>
+          </div>
+        </section>
+
+        <!-- GRAFIC 3: Functionare vs Investitii 100% Stacked -->
+        <section class="owid-chart-card" style="margin-bottom: 0;">
+          <div class="owid-header">
+            <div>
+              <div class="owid-kicker">GRAFIC 3 · STRUCTURA CHELTUIELILOR (100% STACKED)</div>
+              <h2 class="owid-title">Ponderea Funcționării vs. Investițiilor în plățile anuale</h2>
+              <p class="owid-subtitle">Proporția cheltuielilor curente față de proiectele de capital și dezvoltare</p>
+            </div>
+            <div class="owid-legend" style="margin-top: 4px;">
+              <span class="owid-legend-item"><span class="legend-swatch" style="background: var(--domain-2);"></span> Funcționare</span>
+              <span class="owid-legend-item"><span class="legend-swatch" style="background: var(--brand-gold);"></span> Investiții</span>
+            </div>
+          </div>
+
+          <svg class="owid-svg" viewBox="0 0 460 360" id="svg-chart-3" role="img" aria-label="Grafic 100% Stacked Funcționare versus Investiții 2022-2025"></svg>
+
+          <div class="owid-footer">
+            <span>Clasificare după axa economică <span class="analytic-only">(Titlurile 10–85 vs. 56–72)</span></span>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- TABEL DETALIAT ÎN SECȚIUNE COLAPSABILĂ LA FINAL -->
+      <details class="table-accordion">
+        <summary>
+          <span style="display: flex; align-items: center; gap: 10px;">
+            <svg class="icon" viewBox="0 0 24 24" style="color: var(--brand-primary);"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            Tabel Detaliat pe Capitole Bugetare (calcul SQL <code>LAG()</code> 2022 → 2024 → 2025)
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-muted);">
+            Click pentru a extinde datele exacte
+            <svg class="icon accordion-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+        </summary>
+        <div class="table-wrap">
+          <table class="comp-table">
+            <thead>
+              <tr>
+                <th>Capitol Bugetar</th>
+                <th>Domeniu</th>
+                <th class="tabular-nums" id="th-2022">Execuție 2022</th>
+                <th class="tabular-nums" id="th-2024">Execuție 2024</th>
+                <th class="tabular-nums">Variație '22→'24</th>
+                <th class="tabular-nums" id="th-2025">Execuție 2025</th>
+                <th class="tabular-nums">Variație '24→'25</th>
+              </tr>
+            </thead>
+            <tbody id="comp-tbody"></tbody>
+          </table>
+        </div>
+      </details>
+
+    </div>
+  </main>
+
+  <!-- STAREA LOADING: SKELETONS -->
+  <main id="state-loading" class="state-view">
+    <div class="container">
+      <div class="skeleton" style="width: 100%; height: 110px; margin-bottom: 24px;"></div>
+      <div class="per-capita-grid">
+        <div class="per-capita-card"><div class="skeleton" style="height: 80px;"></div></div>
+        <div class="per-capita-card"><div class="skeleton" style="height: 80px;"></div></div>
+        <div class="per-capita-card"><div class="skeleton" style="height: 80px;"></div></div>
+      </div>
+      <div class="skeleton" style="width: 100%; height: 340px; margin-bottom: 24px;"></div>
+      <div class="chart-two-col">
+        <div class="skeleton" style="height: 360px;"></div>
+        <div class="skeleton" style="height: 360px;"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- STAREA EMPTY -->
+  <main id="state-empty" class="state-view">
+    <div class="container">
+      <div style="text-align: center; padding: 64px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); max-width: 600px; margin: 40px auto;">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--fg-muted); margin-bottom: 16px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Date comparative insuficiente</h2>
+        <p style="font-size: 14px; color: var(--fg-muted); margin-bottom: 20px;">Sunt necesari cel puțin doi ani de execuție bugetară validați pentru calculul comparativ YoY.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Resetează</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- STAREA ERROR -->
+  <main id="state-error" class="state-view">
+    <div class="container">
+      <div style="text-align: center; padding: 64px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); max-width: 600px; margin: 40px auto;">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--finance-critical); margin-bottom: 16px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <h2 style="font-size: 20px; font-weight: 700; color: var(--finance-critical); margin-bottom: 8px;">Eroare la calculul ferestrei SQL</h2>
+        <p style="font-size: 14px; color: var(--fg-muted); margin-bottom: 20px;">Interogarea analitică PostgreSQL LAG() a eșuat. Verifică integritatea seriilor temporale.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Reîncearcă</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ── Toast notifications (replaces alert()) ── */
+    function showToast(msg, type) {
+      type = type || 'success';
+      var t = document.createElement('div');
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
+      t.setAttribute('aria-atomic', 'true');
+      t.style.cssText = [
+        'position:fixed;bottom:24px;right:24px;z-index:9999',
+        'padding:12px 20px;border-radius:var(--radius-lg,8px)',
+        'font-size:14px;font-weight:600;max-width:380px',
+        'box-shadow:var(--shadow-lg);transition:opacity 300ms ease',
+        'font-family:var(--font-sans)'
+      ].join(';');
+      t.style.background = type === 'success' ? 'var(--finance-positive)'
+                         : type === 'warn'    ? 'var(--finance-warning)'
+                         :                      'var(--brand-primary-fixed)';
+      t.style.color = 'var(--color-white)';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() {
+        t.style.opacity = '0';
+        setTimeout(function() { if (t.parentNode) t.remove(); }, 350);
+      }, 3200);
+    }
+
+    const POP = { 2022: 4860, 2024: 5120, 2025: 5240 };
+    // Ajustare la preturi constante 2025 (factor = 131.8 / IPC_an)
+    const IPC = { 2022: 100.0, 2024: 124.3, 2025: 131.8 };
+
+    const macroData = {
+      2022: { budget: 15336180, paid: 12423391, op: 5449529, inv: 6973862, execPct: '81,0%' },
+      2024: { budget: 39607030, paid: 18645261, op: 7440817, inv: 11204444, execPct: '47,1%' },
+      2025: { budget: 48258490, paid: 21940279, op: 11728569, inv: 10211710, execPct: '45,5%' }
+    };
+
+    const domainSeries = [
+      { id: 'edu', label: 'Educație & Cultură', color: '#7C3AED', v2022: 2213494, v2024: 4784948, v2025: 6990775 },
+      { id: 'social', label: 'Asistență Socială', color: '#E11D48', v2022: 2778244, v2024: 4450956, v2025: 5037989 },
+      { id: 'apa', label: 'Apă & Mediu', color: '#0D9488', v2022: 1285687, v2024: 4931686, v2025: 4815990 },
+      { id: 'admin', label: 'Administrație', color: '#475569', v2022: 4757683, v2024: 3603591, v2025: 3899865 },
+      { id: 'ilum', label: 'Iluminat & Servicii', color: '#D97706', v2022: 1502781, v2024: 1641664, v2025: 3097047 },
+      { id: 'drum', label: 'Drumuri & Transport', color: '#2563EB', v2022: 1313050, v2024: 1338317, v2025: 1384807 },
+      { id: 'agri', label: 'Agricultură', color: '#16A34A', v2022: 88400, v2024: 112300, v2025: 127783 }
+    ];
+
+    const tableRows = [
+      { cap: '84.02 — Transporturi (Străzi și Drumuri)', dom: 'Drumuri', v2022: 1313050, v2024: 1338317, v2025: 1384807 },
+      { cap: '70.02 — Locuințe, servicii și dezvoltare', dom: 'Iluminat & Servicii', v2022: 1502781, v2024: 1641664, v2025: 3097047 },
+      { cap: '74.02 — Protecția mediului (Canalizare & Salubritate)', dom: 'Apă & Mediu', v2022: 1285687, v2024: 4931686, v2025: 4815990 },
+      { cap: '65.02 & 67.02 — Învățământ, Cultură și Culte', dom: 'Educație', v2022: 2213494, v2024: 4784948, v2025: 6990775 },
+      { cap: '68.02 & 66.02 — Asigurări sociale și Sănătate', dom: 'Social & Sănătate', v2022: 2778244, v2024: 4450956, v2025: 5037989 },
+      { cap: '51.02 — Autorități executive (Primărie & Consiliu)', dom: 'Administrație', v2022: 4757683, v2024: 3603591, v2025: 3899865 },
+      { cap: 'TOTAL GENERAL CHELTUIELI (5002)', dom: 'Comuna Șura Mare', v2022: 12423391, v2024: 18645261, v2025: 21940279, isTotal: true }
+    ];
+
+    let currentMode = 'nom';
+
+    function transformVal(val, year, mode) {
+      if (mode === 'ipc') return Math.round(val * (IPC[2025] / IPC[year]));
+      if (mode === 'pc') return Math.round(val / POP[year]);
+      return val;
+    }
+
+    function fmtLei(val, mode) {
+      const formatted = Math.round(val).toLocaleString('ro-RO');
+      return mode === 'pc' ? formatted + ' lei/loc.' : formatted + ' lei';
+    }
+
+    function fmtShort(val, mode) {
+      if (mode === 'pc') return Math.round(val).toLocaleString('ro-RO') + ' lei';
+      return (val / 1e6).toFixed(2).replace('.', ',') + 'M';
+    }
+
+    function pctChange(prev, curr) {
+      const pct = ((curr - prev) / prev) * 100;
+      const sign = pct >= 0 ? '+' : '';
+      return sign + pct.toFixed(1).replace('.', ',') + '%';
+    }
+
+    function renderAll() {
+      const mode = currentMode;
+
+      // Update explanation & KPI cards
+      const expEl = document.getElementById('mode-explanation');
+      if (mode === 'nom') {
+        expEl.innerHTML = '<strong>Mod activ: Lei Nominali</strong> — Sumele exacte raportate în execuțiile bugetare ale Primăriei Șura Mare fără ajustări statistice.';
+        document.getElementById('chart1-subtitle').textContent = 'Comparație între creditele bugetare definitive (previzionat) și plățile efectuate efectiv (mil. lei, valori nominale)';
+        document.getElementById('chart2-subtitle').textContent = 'Plăți efectuate pe cele 7 domenii (mil. lei nominali, 2022 → 2024 → 2025). Trece cursorul peste o linie pentru evidențiere.';
+      } else if (mode === 'ipc') {
+        expEl.innerHTML = '<strong>Mod activ: Ajustat cu Inflația (IPC 2025 = 100%)</strong> — Sumele din 2022 și 2024 sunt aduse la puterea de cumpărare din 2025 (factor ×1,318 pentru 2022 și ×1,060 pentru 2024).';
+        document.getElementById('chart1-subtitle').textContent = 'Valori reale exprimate în puterea de cumpărare a anului 2025 (ajustate cu IPC INS)';
+        document.getElementById('chart2-subtitle').textContent = 'Evoluția reală ajustată cu inflația (prețuri constante 2025) pe cele 7 domenii.';
+      } else {
+        expEl.innerHTML = '<strong>Mod activ: Per Capita (lei / locuitor)</strong> — Sumele anuale împărțite la populația rezidentă INS (4.860 în 2022, 5.120 în 2024, 5.240 în 2025).';
+        document.getElementById('chart1-subtitle').textContent = 'Buget previzionat vs. plăți efectuate per locuitor (lei / locuitor INS)';
+        document.getElementById('chart2-subtitle').textContent = 'Cheltuieli efective per locuitor pe cele 7 domenii (lei / locuitor).';
+      }
+
+      const p22 = transformVal(macroData[2022].paid, 2022, mode);
+      const p24 = transformVal(macroData[2024].paid, 2024, mode);
+      const p25 = transformVal(macroData[2025].paid, 2025, mode);
+
+      document.getElementById('sum-2022').textContent = fmtLei(p22, mode);
+      document.getElementById('sum-2024').textContent = fmtLei(p24, mode);
+      document.getElementById('sum-2025').textContent = fmtLei(p25, mode);
+
+      document.getElementById('sum-sub-2022').innerHTML = `Prevăzut: ${fmtShort(transformVal(macroData[2022].budget, 2022, mode), mode)} • <span style="color: var(--finance-positive); font-weight: 700;">81,0% execuție</span>`;
+      document.getElementById('sum-sub-2024').innerHTML = `Prevăzut: ${fmtShort(transformVal(macroData[2024].budget, 2024, mode), mode)} • <span class="diff-badge diff-up tabular-nums">${pctChange(p22, p24)} vs. 2022</span>`;
+      document.getElementById('sum-sub-2025').innerHTML = `Prevăzut: ${fmtShort(transformVal(macroData[2025].budget, 2025, mode), mode)} • <span class="diff-badge diff-up tabular-nums">${pctChange(p24, p25)} vs. 2024</span>`;
+
+      renderChart1(mode);
+      renderChart2(mode);
+      renderChart3();
+      renderTable(mode);
+    }
+
+    function renderChart1(mode) {
+      const svg = document.getElementById('svg-chart-1');
+      const items = [
+        {
+          yr: '2022', b: transformVal(macroData[2022].budget, 2022, mode), p: transformVal(macroData[2022].paid, 2022, mode),
+          rate: '81,0% execuție', pillBg: 'var(--finance-positive-bg)', pillStroke: 'var(--finance-positive)', pillFg: 'var(--finance-positive)', x: 150
+        },
+        { yr: '2023', gap: true, x: 410 },
+        {
+          yr: '2024', b: transformVal(macroData[2024].budget, 2024, mode), p: transformVal(macroData[2024].paid, 2024, mode),
+          rate: '47,1% execuție', pillBg: 'var(--finance-warning-bg)', pillStroke: 'var(--finance-warning)', pillFg: 'var(--finance-warning)', x: 670
+        },
+        {
+          yr: '2025', b: transformVal(macroData[2025].budget, 2025, mode), p: transformVal(macroData[2025].paid, 2025, mode),
+          rate: '45,5% execuție', pillBg: 'var(--finance-critical-bg)', pillStroke: 'var(--finance-critical)', pillFg: 'var(--finance-critical)', x: 930
+        }
+      ];
+      const maxVal = Math.max(...items.filter(i => !i.gap).map(i => i.b)) * 1.15;
+      const topY = 38, baseY = 278, h = baseY - topY;
+      const yOf = v => baseY - (v / maxVal) * h;
+
+      let out = `
+        <defs>
+          <pattern id="gapHatch" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+            <line x1="0" y1="0" x2="0" y2="8" stroke="var(--border-default)" stroke-width="2.5" />
+          </pattern>
+        </defs>
+      `;
+
+      // Grid lines (5 ticks)
+      for (let i = 0; i <= 4; i++) {
+        const val = (maxVal / 4) * i;
+        const y = yOf(val);
+        const label = mode === 'pc' ? Math.round(val).toLocaleString('ro-RO') : (val / 1e6).toFixed(0) + 'M';
+        out += `<line x1="72" y1="${y}" x2="1080" y2="${y}" stroke="var(--border-default)" stroke-dasharray="${i === 0 ? '' : '3 3'}" stroke-width="1"/>`;
+        out += `<text x="62" y="${y + 4}" text-anchor="end" fill="var(--fg-subtle)" font-size="11" class="tabular-nums">${label}</text>`;
+      }
+
+      items.forEach(item => {
+        if (item.gap) {
+          out += `
+            <rect x="${item.x - 55}" y="${topY + 10}" width="110" height="${h - 10}" rx="6" fill="url(#gapHatch)" stroke="var(--border-default)" stroke-dasharray="4 3"/>
+            <text x="${item.x}" y="${topY + h / 2 - 4}" text-anchor="middle" fill="var(--fg-muted)" font-size="11.5" font-weight="700">2023</text>
+            <text x="${item.x}" y="${topY + h / 2 + 12}" text-anchor="middle" fill="var(--fg-subtle)" font-size="10.5">Date lipsă</text>
+            <text x="${item.x}" y="${baseY + 24}" text-anchor="middle" fill="var(--fg-subtle)" font-size="13" font-weight="600">2023</text>
+          `;
+          return;
+        }
+        const yb = yOf(item.b), yp = yOf(item.p);
+        const hb = baseY - yb, hp = baseY - yp;
+        out += `
+          <rect x="${item.x - 62}" y="${yb}" width="56" height="${hb}" rx="4" fill="#D97706"/>
+          <text x="${item.x - 34}" y="${yb - 8}" text-anchor="middle" fill="var(--finance-warning)" font-size="12" font-weight="700" class="tabular-nums">${fmtShort(item.b, mode)}</text>
+
+          <rect x="${item.x + 6}" y="${yp}" width="56" height="${hp}" rx="4" fill="#0F3B9D"/>
+          <text x="${item.x + 34}" y="${yp - 8}" text-anchor="middle" fill="var(--brand-primary)" font-size="12" font-weight="800" class="tabular-nums">${fmtShort(item.p, mode)}</text>
+
+          <text x="${item.x}" y="${baseY + 24}" text-anchor="middle" fill="var(--fg-default)" font-size="14" font-weight="800">${item.yr}</text>
+          <rect x="${item.x - 52}" y="${baseY + 32}" width="104" height="22" rx="11" fill="${item.pillBg}" stroke="${item.pillStroke}" stroke-width="1"/>
+          <text x="${item.x}" y="${baseY + 46.5}" text-anchor="middle" fill="${item.pillFg}" font-size="10.5" font-weight="800" class="tabular-nums">${item.rate}</text>
+        `;
+      });
+
+      svg.innerHTML = out;
+    }
+
+    function renderChart2(mode) {
+      const svg = document.getElementById('svg-chart-2');
+      const x22 = 68, x23 = 200, x24 = 330, x25 = 460;
+      const topY = 28, baseY = 332, h = baseY - topY;
+
+      const transformed = domainSeries.map(s => ({
+        ...s,
+        y22val: transformVal(s.v2022, 2022, mode),
+        y24val: transformVal(s.v2024, 2024, mode),
+        y25val: transformVal(s.v2025, 2025, mode)
+      }));
+
+      const maxVal = Math.max(...transformed.flatMap(s => [s.y22val, s.y24val, s.y25val])) * 1.12;
+      const yOf = v => baseY - (v / maxVal) * h;
+
+      let out = '';
+      // Grid lines
+      for (let i = 0; i <= 4; i++) {
+        const val = (maxVal / 4) * i;
+        const y = yOf(val);
+        const lbl = mode === 'pc' ? Math.round(val).toLocaleString('ro-RO') : (val / 1e6).toFixed(1).replace('.', ',') + 'M';
+        out += `<line x1="${x22}" y1="${y}" x2="${x25}" y2="${y}" stroke="var(--border-default)" stroke-dasharray="${i === 0 ? '' : '3 3'}" stroke-width="1"/>`;
+        out += `<text x="${x22 - 8}" y="${y + 4}" text-anchor="end" fill="var(--fg-subtle)" font-size="10.5" class="tabular-nums">${lbl}</text>`;
+      }
+
+      // 2023 Gap band
+      out += `<rect x="${x23 - 26}" y="${topY}" width="52" height="${h}" fill="var(--bg-surface-subtle)" opacity="0.75"/>`;
+      out += `<text x="${x23}" y="${topY + 16}" text-anchor="middle" fill="var(--fg-subtle)" font-size="9.5" font-weight="700">2023 lipsă</text>`;
+
+      // X-axis year labels
+      [[x22, '2022'], [x23, '2023'], [x24, '2024'], [x25, '2025']].forEach(([x, lbl]) => {
+        out += `<text x="${x}" y="${baseY + 20}" text-anchor="middle" fill="${lbl === '2023' ? 'var(--fg-subtle)' : 'var(--fg-default)'}" font-size="12" font-weight="${lbl === '2025' ? '800' : '600'}">${lbl}</text>`;
+      });
+
+      // Compute non-overlapping right-side direct labels (sorted descending by 2025 value)
+      const sorted = [...transformed].sort((a, b) => b.y25val - a.y25val);
+      const labelYs = [];
+      sorted.forEach(s => {
+        let targetY = yOf(s.y25val);
+        if (labelYs.length > 0 && targetY - labelYs[labelYs.length - 1] < 24) {
+          targetY = labelYs[labelYs.length - 1] + 24;
+        }
+        labelYs.push(targetY);
+        s.labelY = targetY;
+      });
+
+      sorted.forEach(s => {
+        const y22 = yOf(s.y22val), y24 = yOf(s.y24val), y25 = yOf(s.y25val);
+        out += `
+          <g class="domain-series" data-series="${s.id}" onmouseenter="highlightSeries('${s.id}')" onmouseleave="highlightSeries(null)">
+            <line x1="${x22}" y1="${y22}" x2="${x24}" y2="${y24}" stroke="${s.color}" stroke-width="2.5" stroke-dasharray="5 4" opacity="0.75"/>
+            <line x1="${x24}" y1="${y24}" x2="${x25}" y2="${y25}" stroke="${s.color}" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="${x22}" cy="${y22}" r="4.5" fill="${s.color}" stroke="var(--bg-surface)" stroke-width="1.5"/>
+            <circle cx="${x24}" cy="${y24}" r="4.5" fill="${s.color}" stroke="var(--bg-surface)" stroke-width="1.5"/>
+            <circle cx="${x25}" cy="${y25}" r="5.5" fill="${s.color}" stroke="var(--bg-surface)" stroke-width="2"/>
+            <path d="M ${x25 + 6} ${y25} L ${x25 + 16} ${s.labelY}" stroke="${s.color}" stroke-width="1" opacity="0.5"/>
+            <text x="${x25 + 20}" y="${s.labelY + 4}" fill="${s.color}" font-size="11.5" font-weight="700" class="tabular-nums">${s.label} · ${fmtShort(s.y25val, mode)}</text>
+          </g>
+        `;
+      });
+
+      svg.innerHTML = out;
+    }
+
+    function highlightSeries(id) {
+      document.querySelectorAll('.domain-series').forEach(el => {
+        if (!id) { el.classList.remove('dimmed'); }
+        else { el.classList.toggle('dimmed', el.dataset.series !== id); }
+      });
+    }
+
+    function renderChart3() {
+      const svg = document.getElementById('svg-chart-3');
+      const cols = [
+        { yr: '2022', opPct: 43.9, invPct: 56.1, opStr: '5,45M', invStr: '6,97M', x: 75 },
+        { yr: '2023', gap: true, x: 175 },
+        { yr: '2024', opPct: 39.9, invPct: 60.1, opStr: '7,44M', invStr: '11,20M', x: 275 },
+        { yr: '2025', opPct: 53.5, invPct: 46.5, opStr: '11,73M', invStr: '10,21M', x: 375 }
+      ];
+      const topY = 26, baseY = 308, h = baseY - topY;
+      let out = '';
+
+      [0, 25, 50, 75, 100].forEach(pct => {
+        const y = baseY - (pct / 100) * h;
+        out += `<line x1="42" y1="${y}" x2="438" y2="${y}" stroke="var(--border-default)" stroke-dasharray="${pct === 0 ? '' : '3 3'}" stroke-width="1"/>`;
+        out += `<text x="36" y="${y + 4}" text-anchor="end" fill="var(--fg-subtle)" font-size="10.5" class="tabular-nums">${pct}%</text>`;
+      });
+
+      cols.forEach(c => {
+        if (c.gap) {
+          out += `
+            <rect x="${c.x - 28}" y="${topY}" width="56" height="${h}" rx="4" fill="var(--bg-surface-subtle)" stroke="var(--border-default)" stroke-dasharray="4 3"/>
+            <text x="${c.x}" y="${topY + h / 2}" text-anchor="middle" fill="var(--fg-subtle)" font-size="10" transform="rotate(-90, ${c.x}, ${topY + h / 2})">2023 lipsă</text>
+            <text x="${c.x}" y="${baseY + 22}" text-anchor="middle" fill="var(--fg-subtle)" font-size="12" font-weight="600">2023</text>
+          `;
+          return;
+        }
+        const hInv = (c.invPct / 100) * h;
+        const hOp = h - hInv;
+        const yInv = topY;
+        const yOp = topY + hInv;
+
+        out += `
+          <rect x="${c.x - 32}" y="${yInv}" width="64" height="${hInv}" rx="4" fill="#EAB308"/>
+          <text x="${c.x}" y="${yInv + hInv / 2 - 2}" text-anchor="middle" fill="#0F172A" font-size="12.5" font-weight="800" class="tabular-nums">${c.invPct.toFixed(1).replace('.', ',')}%</text>
+          <text x="${c.x}" y="${yInv + hInv / 2 + 13}" text-anchor="middle" fill="rgba(15,23,42,0.85)" font-size="10" font-weight="700" class="tabular-nums">${c.invStr}</text>
+
+          <rect x="${c.x - 32}" y="${yOp + 2}" width="64" height="${hOp - 2}" rx="4" fill="#0D9488"/>
+          <text x="${c.x}" y="${yOp + hOp / 2 - 2}" text-anchor="middle" fill="#FFFFFF" font-size="12.5" font-weight="800" class="tabular-nums">${c.opPct.toFixed(1).replace('.', ',')}%</text>
+          <text x="${c.x}" y="${yOp + hOp / 2 + 13}" text-anchor="middle" fill="rgba(255,255,255,0.92)" font-size="10" class="tabular-nums">${c.opStr}</text>
+
+          <text x="${c.x}" y="${baseY + 22}" text-anchor="middle" fill="var(--fg-default)" font-size="13" font-weight="800">${c.yr}</text>
+        `;
+      });
+
+      svg.innerHTML = out;
+    }
+
+    function renderTable(mode) {
+      const tbody = document.getElementById('comp-tbody');
+      tbody.innerHTML = tableRows.map(r => {
+        const a22 = transformVal(r.v2022, 2022, mode);
+        const a24 = transformVal(r.v2024, 2024, mode);
+        const a25 = transformVal(r.v2025, 2025, mode);
+        const d22_24 = ((a24 - a22) / a22) * 100;
+        const d24_25 = ((a25 - a24) / a24) * 100;
+        const cls1 = d22_24 > 50 ? 'diff-up' : (d22_24 < 0 ? 'diff-down' : 'diff-neutral');
+        const cls2 = d24_25 > 50 ? 'diff-warn' : (d24_25 > 0 ? 'diff-up' : 'diff-neutral');
+        const rowStyle = r.isTotal ? 'style="background: var(--bg-surface-subtle); font-weight: 800;"' : '';
+        return `
+          <tr ${rowStyle}>
+            <td><strong>${r.cap}</strong></td>
+            <td>${r.dom}</td>
+            <td class="tabular-nums">${fmtLei(a22, mode)}</td>
+            <td class="tabular-nums">${fmtLei(a24, mode)}</td>
+            <td><span class="diff-badge ${cls1} tabular-nums">${pctChange(a22, a24)}</span></td>
+            <td class="tabular-nums"><strong>${fmtLei(a25, mode)}</strong></td>
+            <td><span class="diff-badge ${cls2} tabular-nums">${pctChange(a24, a25)}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn-nom').classList.toggle('active', mode === 'nom');
+      document.getElementById('btn-ipc').classList.toggle('active', mode === 'ipc');
+      document.getElementById('btn-pc').classList.toggle('active', mode === 'pc');
+      renderAll();
+    }
+
+    function setViewMode(mode) {
+      document.body.classList.toggle('mode-citizen', mode === 'citizen');
+      document.body.classList.toggle('mode-analytic', mode === 'analytic');
+      document.querySelectorAll('[data-view-mode]').forEach(b => {
+        b.classList.toggle('mode-active', b.dataset.viewMode === mode);
+      });
+    }
+
+    function selectYear(yr) {
+      document.querySelectorAll('[data-year]').forEach(b => b.classList.toggle('active', b.dataset.year === yr));
+    }
+
+    function switchState(stateName) {
+      document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
+      document.getElementById('state-' + stateName).classList.add('active');
+      document.querySelectorAll('.mock-toolbar .btn-toggle[data-state]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.state === stateName);
+      });
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const btn = document.getElementById('theme-btn');
+      btn.innerHTML = isDark
+        ? '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Light Mode'
+        : '<svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg> Dark Mode';
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>
