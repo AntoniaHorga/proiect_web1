@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ro" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-005 · Metodologie, Audit & Reconciliere — Șura Mare</title>
+  <style>
+    /* Design Tokens din docs/design/DESIGN.md */
+    :root {
+      --font-sans: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+      --bg-app: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-surface-subtle: #F1F5F9;
+      --fg-default: #0F172A;
+      --fg-muted: #475569;
+      --fg-subtle: #64748B;
+      --border-default: #E2E8F0;
+      --border-subtle: #F1F5F9;
+
+      --brand-primary: #0F3B9D;
+      --brand-primary-hover: #0C2F7D;
+      --brand-gold: #A16207;
+      --brand-gold-bg: #DFD400;
+      --brand-gold-subtle: #FEF9C3;
+
+      --finance-positive: #15803D;
+      --finance-positive-bg: #DCFCE7;
+      --finance-warning: #B45309;
+      --finance-warning-bg: #FEF3C7;
+      --finance-critical: #B91C1C;
+      --finance-critical-bg: #FEE2E2;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+      --radius-full: 9999px;
+    
+      /* Fixed brand colours — invariant across themes */
+      --brand-primary-fixed: #0F3B9D;
+      --brand-gold-fixed: #DFD400;
+      --color-white: #FFFFFF;
+
+      /* Chart tokens (ECharts) */
+      --chart-forecast: #60A5FA;
+      --chart-actual: #0F3B9D;
+      --chart-stacked-operating: #334155;
+      --chart-stacked-investment: #0284C7;
+
+      /* Focus ring (WCAG 2.1 §2.4.7) */
+      --focus-ring: 0 0 0 3px rgba(15, 59, 157, 0.5);
+
+      /* Derived brand shadow */
+      --shadow-brand: 0 4px 14px rgba(15, 59, 157, 0.25);
+
+      /* Mock toolbar badge (fixed UI chrome) */
+      --badge-mock-bg: #15803D;
+    }
+
+    html.dark {
+      --bg-app: #0B0F17;
+      --bg-surface: #111827;
+      --bg-surface-subtle: #1F2937;
+      --fg-default: #F8FAFC;
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --border-default: #374151;
+      --border-subtle: #1F2937;
+
+      --brand-primary: #60A5FA;
+      --brand-primary-hover: #93C5FD;
+      --brand-gold: #FACC15;
+      --brand-gold-bg: #854D0E;
+      --brand-gold-subtle: #422006;
+
+      --finance-positive: #4ADE80;
+      --finance-positive-bg: #052E16;
+      --finance-warning: #FBBF24;
+      --finance-warning-bg: #451A03;
+      --finance-critical: #F87171;
+      --finance-critical-bg: #450A0A;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --chart-forecast: #93C5FD;
+      --chart-actual: #60A5FA;
+      --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--fg-default);
+      line-height: 1.5;
+      transition: background-color 200ms ease, color 200ms ease;
+    }
+
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    .font-mono { font-family: var(--font-mono); }
+
+    body.mode-citizen .analytic-only { display: none !important; }
+    body.mode-analytic .citizen-only { display: none !important; }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .icon-lg { width: 22px; height: 22px; }
+    .icon-xl { width: 40px; height: 40px; }
+    /* Keyboard focus ring (WCAG 2.1 §2.4.7) */
+    *:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    /* Test Toolbar */
+    .mock-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      font-size: 13px;
+    }
+    .mock-toolbar-left, .mock-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .badge-mock { background: var(--badge-mock-bg); color: var(--color-white); padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700; font-size: 11px; }
+    .btn-toggle {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--fg-default);
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-toggle.active { background: var(--brand-primary-fixed); color: var(--color-white); border-color: var(--brand-primary-fixed); }
+
+    /* Unified Header Nav Oficial Șura Mare: 76px, Stemă curată fără chenar alb */
+    .app-header {
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border-bottom: 3px solid var(--brand-gold-fixed);
+      min-height: 76px;
+      padding: 0 24px;
+      box-shadow: var(--shadow-brand);
+      display: flex;
+      align-items: center;
+    }
+    .header-content {
+      width: 100%;
+      max-width: 1340px;
+      margin: 0 auto;
+      min-height: 73px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .brand-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--color-white); flex-shrink: 0; }
+    .crest-img {
+      height: 50px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+    }
+    .brand-title { font-weight: 800; font-size: 16px; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-sub { font-size: 10.5px; color: var(--brand-gold-fixed); font-weight: 700; letter-spacing: 0.6px; margin-top: 2px; }
+    .nav-links { display: flex; align-items: center; gap: 2px; list-style: none; }
+    .nav-link {
+      text-decoration: none;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 8px 11px;
+      border-radius: var(--radius-md);
+      transition: all 150ms ease;
+      position: relative;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--color-white); background: rgba(255, 255, 255, 0.14); }
+    .nav-link.active { color: var(--color-white); font-weight: 700; background: rgba(0, 0, 0, 0.22); }
+    .nav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: -18px;
+      left: 10px;
+      right: 10px;
+      height: 3px;
+      background: var(--brand-gold-fixed);
+      border-radius: 2px 2px 0 0;
+    }
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .pill-switch {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.28);
+      padding: 3px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      gap: 2px;
+    }
+    .pill-btn {
+      border: none;
+      background: transparent;
+      padding: 5px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.85);
+      transition: all 150ms ease;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .pill-btn:hover { color: var(--color-white); }
+    .pill-btn.active { background: var(--brand-gold-fixed); color: var(--fg-default); box-shadow: var(--shadow-sm); }
+    .pill-btn.mode-active { background: var(--color-white); color: var(--brand-primary-fixed); box-shadow: var(--shadow-sm); }
+    .header-auth-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--color-white);
+      text-decoration: none;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 11px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: var(--radius-md);
+      white-space: nowrap;
+    }
+    .header-auth-btn:hover { background: rgba(255, 255, 255, 0.24); }
+    .code-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-subtle);
+      color: var(--brand-primary);
+    }
+
+    /* Container */
+    .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px 64px 24px; }
+
+    /* Hero Audit */
+    .audit-hero {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      display: grid;
+      grid-template-columns: 1.75fr 1fr;
+      gap: 24px;
+      align-items: center;
+    }
+    .audit-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .audit-desc { font-size: 14px; color: var(--fg-muted); line-height: 1.6; }
+    .map-box {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .map-svg { width: 260px; height: 148px; }
+
+    /* Reconciliere Grid */
+    .reconciliation-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .recon-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .recon-top {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .recon-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .status-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tag-exact { background: var(--finance-positive-bg); color: var(--finance-positive); }
+    .tag-rounded { background: var(--brand-gold-subtle); color: var(--brand-gold); }
+    .tag-discrepancy { background: var(--finance-critical-bg); color: var(--finance-critical); }
+
+    .recon-row { display: flex; justify-content: space-between; font-size: 13px; }
+    .recon-row span:first-child { color: var(--fg-muted); }
+    .recon-row span:last-child { font-weight: 600; }
+
+    .admin-note-box {
+      background: var(--bg-surface-subtle);
+      border-left: 3px solid var(--brand-primary-fixed);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--fg-default);
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Ghid Rapid Cetățeni */
+    .guide-section {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+    }
+    .guide-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .guide-card {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .guide-step-head { display: flex; align-items: center; gap: 10px; }
+    .rule-num {
+      width: 28px;
+      height: 28px;
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .guide-card h4 { font-size: 14px; font-weight: 700; color: var(--fg-default); line-height: 1.3; }
+    .guide-card p { font-size: 13px; color: var(--fg-muted); line-height: 1.5; }
+
+    /* Download files */
+    .files-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .file-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .file-actions-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .file-btn {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--brand-primary);
+      padding: 6px 11px;
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+    .file-btn:hover { background: var(--brand-primary-fixed); color: var(--color-white); border-color: var(--brand-primary-fixed); }
+
+    /* States */
+    .state-view { display: none; }
+    .state-view.active { display: block; }
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-surface-subtle) 25%, var(--border-default) 50%, var(--bg-surface-subtle) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-md);
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    @media (max-width: 1120px) {
+      .header-content { flex-wrap: wrap; padding: 10px 0; }
+      .nav-link.active::after { bottom: -6px; }
+      .audit-hero { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .reconciliation-grid, .guide-grid, .files-grid { grid-template-columns: 1fr; }
+      .nav-links { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body class="mode-citizen">
+
+  <!-- Mockup Toolbar Testare -->
+  <div class="mock-toolbar">
+    <div class="mock-toolbar-left">
+      <span class="badge-mock">DS-005 · APPROVED</span>
+      <strong>05-audit.html</strong> — Metodologie, Audit &amp; Reconciliere (<code>/audit</code>)
+    </div>
+    <div class="mock-toolbar-right">
+      <span>Stare:</span>
+      <button class="btn-toggle active" data-state="normal" onclick="switchState('normal')">Normal (Date Reale)</button>
+      <button class="btn-toggle" data-state="loading" onclick="switchState('loading')">Loading (Skeleton)</button>
+      <button class="btn-toggle" data-state="empty" onclick="switchState('empty')">Empty</button>
+      <button class="btn-toggle" data-state="error" onclick="switchState('error')">Error</button>
+      <div style="height: 16px; width: 1px; background: var(--border-default);"></div>
+      <button class="btn-toggle" id="theme-btn" onclick="toggleTheme()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        Dark Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- Header Navigație Oficială Șura Mare -->
+  <header class="app-header">
+    <div class="header-content">
+      <a href="01-dashboard.html" class="brand-logo">
+        <img src="../assets/stema-sura-mare.png" alt="Stema Comunei Șura Mare" class="crest-img">
+        <div>
+          <div class="brand-title">COMUNA ȘURA MARE</div>
+          <div class="brand-sub">EXPLORATOR DE BUGET LOCAL</div>
+        </div>
+      </a>
+
+      <nav aria-label="Navigație principală">
+        <ul class="nav-links">
+          <li><a href="01-dashboard.html" class="nav-link">Tablou de Bord</a></li>
+          <li><a href="02-explorator.html" class="nav-link">Explorator Buget</a></li>
+          <li><a href="03-cautare.html" class="nav-link">Căutare</a></li>
+          <li><a href="04-comparatii.html" class="nav-link">Comparații An/An</a></li>
+          <li><a href="05-audit.html" class="nav-link active">Metodologie &amp; Audit</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <div class="pill-switch" role="group" aria-label="Mod vizualizare">
+          <button class="pill-btn mode-active" data-view-mode="citizen" onclick="setViewMode('citizen')">Mod Cetățean</button>
+          <button class="pill-btn" data-view-mode="analytic" onclick="setViewMode('analytic')">Mod Analitic</button>
+        </div>
+        <div class="pill-switch" role="group" aria-label="Selectare an bugetar">
+          <button class="pill-btn" data-year="2022" onclick="selectYear('2022')">2022</button>
+          <button class="pill-btn" data-year="2024" onclick="selectYear('2024')">2024</button>
+          <button class="pill-btn active" data-year="2025" onclick="selectYear('2025')">2025</button>
+        </div>
+        <a href="06-auth.html" class="header-auth-btn">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Elena Popescu
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- STAREA NORMALĂ -->
+  <main id="state-normal" class="state-view active">
+    <div class="container">
+
+      <!-- Audit Hero cu Teritoriul Șura Mare & Hamba -->
+      <section class="audit-hero">
+        <div>
+          <h1 class="audit-title">Metodologie, Reconciliere Contabilă &amp; Date Deschise</h1>
+          <p class="audit-desc">
+            Fiecare execuție bugetară publicată trece prin motorul matematic de reconciliere: totalul calculat din liniile de detaliu este verificat împotriva totalului raportat oficial în documentele Primăriei Șura Mare (toleranță de rotunjire ±1,00 leu conform deciziei D-004). Datele originale sunt păstrate nemodificate pentru audit civic independent.
+          </p>
+        </div>
+        <div class="map-box">
+          <svg class="map-svg" viewBox="0 0 290 165" fill="none" role="img" aria-label="Siluetă UAT Comuna Șura Mare și Satul Hamba">
+            <path d="M50 24 L118 10 L195 20 L252 54 L230 108 L150 120 L66 108 L30 62 Z" fill="rgba(15, 59, 157, 0.14)" stroke="#0F3B9D" stroke-width="2" stroke-dasharray="4 2"/>
+            <path d="M70 8 L94 134" stroke="#0F3B9D" stroke-width="2.5" opacity="0.75"/>
+            <path d="M82 66 Q142 66 204 60" stroke="#64748B" stroke-width="1.8" stroke-dasharray="3 2"/>
+            <circle cx="82" cy="66" r="5.5" fill="#0F3B9D"/>
+            <text x="96" y="48" fill="var(--fg-default)" font-size="10.5" font-weight="800">Comuna Șura Mare</text>
+            <circle cx="204" cy="60" r="5" fill="#DFD400" stroke="#0F172A" stroke-width="1.5"/>
+            <text x="204" y="80" text-anchor="middle" fill="var(--fg-default)" font-size="10.5" font-weight="700">Satul Hamba</text>
+            <rect x="52" y="138" width="84" height="19" rx="4" fill="#0F3B9D"/>
+            <text x="94" y="151" text-anchor="middle" fill="#FFFFFF" font-size="9.5" font-weight="700">DN14 Sibiu ↓</text>
+          </svg>
+          <span style="font-size: 11px; color: var(--fg-muted); margin-top: 4px; font-weight: 600;">UAT Comuna Șura Mare (CUI: 4241184)</span>
+        </div>
+      </section>
+
+      <!-- Rapoarte Reconciliere pe Fiecare An -->
+      <h2 style="font-size: 18px; font-weight: 800; margin-bottom: 12px;">Rapoarte Oficiale de Reconciliere pe Ani</h2>
+      <section class="reconciliation-grid">
+        <div class="recon-card">
+          <div class="recon-top">
+            <div class="recon-header">
+              <span style="font-weight: 700; font-size: 15px;">Execuție 2022</span>
+              <span class="status-tag tag-exact">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                Potrivire Exactă (0,00 lei)
+              </span>
+            </div>
+            <div class="recon-row"><span>Total Raportat <span class="analytic-only font-mono">(5002)</span>:</span><span class="tabular-nums">15.336.180,00 lei</span></div>
+            <div class="recon-row"><span>Total Calculat Linii:</span><span class="tabular-nums">15.336.180,00 lei</span></div>
+            <div class="recon-row"><span>Diferență Matematică:</span><span class="tabular-nums" style="color: var(--finance-positive);">0,00 lei</span></div>
+          </div>
+          <div class="admin-note-box">
+            <div><strong>Reconciliere Perfectă:</strong> Toate capitolele și titlurile economice din 2022 s-au potrivit exact la nivel de ban.</div>
+          </div>
+        </div>
+
+        <div class="recon-card">
+          <div class="recon-top">
+            <div class="recon-header">
+              <span style="font-weight: 700; font-size: 15px;">Execuție 2024</span>
+              <span class="status-tag tag-rounded">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Rotunjire Admisă (±1,00 leu)
+              </span>
+            </div>
+            <div class="recon-row"><span>Total Raportat <span class="analytic-only font-mono">(5002)</span>:</span><span class="tabular-nums">39.607.030,00 lei</span></div>
+            <div class="recon-row"><span>Total Calculat Linii:</span><span class="tabular-nums">39.607.029,18 lei</span></div>
+            <div class="recon-row"><span>Diferență de Rotunjire:</span><span class="tabular-nums" style="color: var(--brand-gold);">+0,82 lei</span></div>
+          </div>
+          <div class="admin-note-box">
+            <div><strong>Toleranță Admisă:</strong> Diferență sub pragul de ±1,00 leu cauzată de rotunjirile la leu întreg din documentul sursă.</div>
+          </div>
+        </div>
+
+        <div class="recon-card">
+          <div class="recon-top">
+            <div class="recon-header">
+              <span style="font-weight: 700; font-size: 15px;">Execuție 2025</span>
+              <span class="status-tag tag-discrepancy">
+                <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/></svg>
+                Discrepanță Explicată
+              </span>
+            </div>
+            <div class="recon-row"><span>Total Raportat <span class="analytic-only font-mono">(5002)</span>:</span><span class="tabular-nums">48.258.490,00 lei</span></div>
+            <div class="recon-row"><span>Total Calculat Linii:</span><span class="tabular-nums">48.225.421,00 lei</span></div>
+            <div class="recon-row"><span>Diferență Identificată:</span><span class="tabular-nums" style="color: var(--finance-critical);">+33.069,00 lei</span></div>
+          </div>
+          <div class="admin-note-box">
+            <div><strong>Notă Admin (Justificare Validată):</strong> „Diferența provine din stornarea legitimă de plăți efectuate în anii precedenți <span class="analytic-only font-mono">(Titlu 85)</span>, cu valoarea de -33.069 lei.”</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ghid Rapid pentru Cetățeni -->
+      <section class="guide-section">
+        <h3 style="font-size: 17px; font-weight: 800; color: var(--fg-default);">Ghid Rapid: Cum citim bugetul comunei?</h3>
+        <div class="guide-grid">
+          <article class="guide-card">
+            <div class="guide-step-head">
+              <span class="rule-num">1</span>
+              <h4>Buget Aprobat (Previzionat) vs. Plăți Efective</h4>
+            </div>
+            <p>
+              Suma aprobată la începutul/rectificarea anului reprezintă plafonul maxim pe care Primăria îl poate cheltui, iar plățile efective arată banii decontați real până la finalul anului.
+            </p>
+          </article>
+
+          <article class="guide-card">
+            <div class="guide-step-head">
+              <span class="rule-num">2</span>
+              <h4>Cheltuieli de Funcționare vs. Investiții (Dezvoltare)</h4>
+            </div>
+            <p>
+              Funcționarea acoperă cheltuielile curente (salarii, utilități, întreținere școli și drumuri), iar investițiile finanțează proiecte noi (asfaltări, rețele de apă/canalizare, dotări și modernizări).
+            </p>
+          </article>
+
+          <article class="guide-card">
+            <div class="guide-step-head">
+              <span class="rule-num">3</span>
+              <h4>Cum verificăm corectitudinea cifrelor</h4>
+            </div>
+            <p>
+              Fiecare raport publicat de Primăria Șura Mare este verificat matematic între totalul general și suma capitolelor; eventualele diferențe minore de câțiva bani provin din rotunjiri la leu întreg, iar sumele negative punctuale reprezintă stornări contabile legale.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Descărcare Fișiere Brute & Open Data -->
+      <h2 style="font-size: 18px; font-weight: 800; margin-bottom: 12px;">Descarcă Fișierele Sursă Oficiale (Open Data)</h2>
+      <section class="files-grid">
+        <div class="file-card">
+          <div>
+            <div style="font-weight: 700; font-size: 14px;">Execuție Bugetară 2022</div>
+            <div style="font-size: 12px; color: var(--fg-muted);">cheltuieli2022.xlsx • venituri2022.xlsx</div>
+          </div>
+          <div class="file-actions-row">
+            <button class="file-btn" onclick=\"showToast('Descărcare XLSX 2022...')\">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              XLSX
+            </button>
+            <button class="file-btn" onclick=\"showToast('Descărcare CSV curățat 2022...')\">CSV</button>
+            <button class="file-btn" onclick=\"showToast('Descărcare JSON structurat 2022...')\">JSON</button>
+          </div>
+        </div>
+
+        <div class="file-card">
+          <div>
+            <div style="font-weight: 700; font-size: 14px;">Execuție Bugetară 2024</div>
+            <div style="font-size: 12px; color: var(--fg-muted);">cheltuieli2024.xlsx • venituri2024.xlsx</div>
+          </div>
+          <div class="file-actions-row">
+            <button class="file-btn" onclick=\"showToast('Descărcare XLSX 2024...')\">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              XLSX
+            </button>
+            <button class="file-btn" onclick=\"showToast('Descărcare CSV curățat 2024...')\">CSV</button>
+            <button class="file-btn" onclick=\"showToast('Descărcare JSON structurat 2024...')\">JSON</button>
+          </div>
+        </div>
+
+        <div class="file-card">
+          <div>
+            <div style="font-weight: 700; font-size: 14px;">Execuție Bugetară 2025</div>
+            <div style="font-size: 12px; color: var(--fg-muted);">cheltuieli2025.xlsx • venituri2025.xlsx</div>
+          </div>
+          <div class="file-actions-row">
+            <button class="file-btn" onclick=\"showToast('Descărcare XLSX 2025...')\">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              XLSX
+            </button>
+            <button class="file-btn" onclick=\"showToast('Descărcare CSV curățat 2025...')\">CSV</button>
+            <button class="file-btn" onclick=\"showToast('Descărcare JSON structurat 2025...')\">JSON</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- STAREA LOADING: SKELETONS -->
+  <main id="state-loading" class="state-view">
+    <div class="container">
+      <div class="skeleton" style="width: 100%; height: 160px; margin-bottom: 24px;"></div>
+      <div class="reconciliation-grid">
+        <div class="recon-card"><div class="skeleton" style="height: 140px;"></div></div>
+        <div class="recon-card"><div class="skeleton" style="height: 140px;"></div></div>
+        <div class="recon-card"><div class="skeleton" style="height: 140px;"></div></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- STAREA EMPTY -->
+  <main id="state-empty" class="state-view">
+    <div class="container">
+      <div style="text-align: center; padding: 64px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); max-width: 600px; margin: 40px auto;">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--fg-muted); margin-bottom: 16px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Niciun raport de reconciliere disponibil</h2>
+        <p style="font-size: 14px; color: var(--fg-muted); margin-bottom: 20px;">Nu există fișiere reconciliate în baza de date.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Resetează</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- STAREA ERROR -->
+  <main id="state-error" class="state-view">
+    <div class="container">
+      <div style="text-align: center; padding: 64px 20px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); max-width: 600px; margin: 40px auto;">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--finance-critical); margin-bottom: 16px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <h2 style="font-size: 20px; font-weight: 700; color: var(--finance-critical); margin-bottom: 8px;">Eroare la verificarea reconcilierii</h2>
+        <p style="font-size: 14px; color: var(--fg-muted); margin-bottom: 20px;">Jurnalul de reconciliere contabilă nu a putut fi citit.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Reîncearcă</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ── Toast notifications (replaces alert()) ── */
+    function showToast(msg, type) {
+      type = type || 'success';
+      var t = document.createElement('div');
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
+      t.setAttribute('aria-atomic', 'true');
+      t.style.cssText = [
+        'position:fixed;bottom:24px;right:24px;z-index:9999',
+        'padding:12px 20px;border-radius:var(--radius-lg,8px)',
+        'font-size:14px;font-weight:600;max-width:380px',
+        'box-shadow:var(--shadow-lg);transition:opacity 300ms ease',
+        'font-family:var(--font-sans)'
+      ].join(';');
+      t.style.background = type === 'success' ? 'var(--finance-positive)'
+                         : type === 'warn'    ? 'var(--finance-warning)'
+                         :                      'var(--brand-primary-fixed)';
+      t.style.color = 'var(--color-white)';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() {
+        t.style.opacity = '0';
+        setTimeout(function() { if (t.parentNode) t.remove(); }, 350);
+      }, 3200);
+    }
+
+    function setViewMode(mode) {
+      document.body.classList.toggle('mode-citizen', mode === 'citizen');
+      document.body.classList.toggle('mode-analytic', mode === 'analytic');
+      document.querySelectorAll('[data-view-mode]').forEach(b => {
+        b.classList.toggle('mode-active', b.dataset.viewMode === mode);
+      });
+    }
+    function selectYear(yr) {
+      document.querySelectorAll('[data-year]').forEach(b => b.classList.toggle('active', b.dataset.year === yr));
+    }
+    function switchState(stateName) {
+      document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
+      document.getElementById('state-' + stateName).classList.add('active');
+      document.querySelectorAll('.mock-toolbar .btn-toggle[data-state]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.state === stateName);
+      });
+    }
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const btn = document.getElementById('theme-btn');
+      btn.innerHTML = isDark
+        ? '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Light Mode'
+        : '<svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg> Dark Mode';
+    }
+  </script>
+</body>
+</html>

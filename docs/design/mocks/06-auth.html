@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ro" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DS-006 · Autentificare & Înregistrare — Șura Mare</title>
+  <style>
+    /* Design Tokens din docs/design/DESIGN.md */
+    :root {
+      --font-sans: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+      --bg-app: #F8FAFC;
+      --bg-surface: #FFFFFF;
+      --bg-surface-subtle: #F1F5F9;
+      --fg-default: #0F172A;
+      --fg-muted: #475569;
+      --fg-subtle: #64748B;
+      --border-default: #E2E8F0;
+      --border-subtle: #F1F5F9;
+
+      --brand-primary: #0F3B9D;
+      --brand-primary-hover: #0C2F7D;
+      --brand-gold: #A16207;
+      --brand-gold-bg: #DFD400;
+      --brand-gold-subtle: #FEF9C3;
+
+      --finance-positive: #15803D;
+      --finance-positive-bg: #DCFCE7;
+      --finance-warning: #B45309;
+      --finance-warning-bg: #FEF3C7;
+      --finance-critical: #B91C1C;
+      --finance-critical-bg: #FEE2E2;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 12px;
+      --radius-full: 9999px;
+    
+      /* Fixed brand colours — invariant across themes */
+      --brand-primary-fixed: #0F3B9D;
+      --brand-gold-fixed: #DFD400;
+      --color-white: #FFFFFF;
+
+      /* Chart tokens (ECharts) */
+      --chart-forecast: #60A5FA;
+      --chart-actual: #0F3B9D;
+      --chart-stacked-operating: #334155;
+      --chart-stacked-investment: #0284C7;
+
+      /* Focus ring (WCAG 2.1 §2.4.7) */
+      --focus-ring: 0 0 0 3px rgba(15, 59, 157, 0.5);
+
+      /* Derived brand shadow */
+      --shadow-brand: 0 4px 14px rgba(15, 59, 157, 0.25);
+
+      /* Mock toolbar badge (fixed UI chrome) */
+      --badge-mock-bg: #15803D;
+    }
+
+    html.dark {
+      --bg-app: #0B0F17;
+      --bg-surface: #111827;
+      --bg-surface-subtle: #1F2937;
+      --fg-default: #F8FAFC;
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --border-default: #374151;
+      --border-subtle: #1F2937;
+
+      --brand-primary: #60A5FA;
+      --brand-primary-hover: #93C5FD;
+      --brand-gold: #FACC15;
+      --brand-gold-bg: #854D0E;
+      --brand-gold-subtle: #422006;
+
+      --finance-positive: #4ADE80;
+      --finance-positive-bg: #052E16;
+      --finance-warning: #FBBF24;
+      --finance-warning-bg: #451A03;
+      --finance-critical: #F87171;
+      --finance-critical-bg: #450A0A;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      --fg-muted: #CBD5E1;
+      --fg-subtle: #94A3B8;
+      --chart-forecast: #93C5FD;
+      --chart-actual: #60A5FA;
+      --focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--fg-default);
+      line-height: 1.5;
+      transition: background-color 200ms ease, color 200ms ease;
+    }
+
+    body.mode-citizen .analytic-only { display: none !important; }
+    body.mode-analytic .citizen-only { display: none !important; }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .icon-lg { width: 22px; height: 22px; }
+    .icon-xl { width: 40px; height: 40px; }
+    /* Keyboard focus ring (WCAG 2.1 §2.4.7) */
+    *:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    /* Test Toolbar */
+    .mock-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+      font-size: 13px;
+    }
+    .mock-toolbar-left, .mock-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .badge-mock { background: var(--badge-mock-bg); color: var(--color-white); padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700; font-size: 11px; }
+    .btn-toggle {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--fg-default);
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-toggle.active { background: var(--brand-primary-fixed); color: var(--color-white); border-color: var(--brand-primary-fixed); }
+
+    /* Unified Header Nav Oficial Șura Mare: 76px, Stemă curată fără chenar alb */
+    .app-header {
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border-bottom: 3px solid var(--brand-gold-fixed);
+      min-height: 76px;
+      padding: 0 24px;
+      box-shadow: var(--shadow-brand);
+      display: flex;
+      align-items: center;
+    }
+    .header-content {
+      width: 100%;
+      max-width: 1340px;
+      margin: 0 auto;
+      min-height: 73px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .brand-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--color-white); flex-shrink: 0; }
+    .crest-img {
+      height: 50px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+    }
+    .brand-title { font-weight: 800; font-size: 16px; line-height: 1.15; letter-spacing: -0.2px; }
+    .brand-sub { font-size: 10.5px; color: var(--brand-gold-fixed); font-weight: 700; letter-spacing: 0.6px; margin-top: 2px; }
+    .nav-links { display: flex; align-items: center; gap: 2px; list-style: none; }
+    .nav-link {
+      text-decoration: none;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 8px 11px;
+      border-radius: var(--radius-md);
+      transition: all 150ms ease;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--color-white); background: rgba(255, 255, 255, 0.14); }
+    .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .pill-switch {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.28);
+      padding: 3px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      gap: 2px;
+    }
+    .pill-btn {
+      border: none;
+      background: transparent;
+      padding: 5px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.85);
+      transition: all 150ms ease;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .pill-btn:hover { color: var(--color-white); }
+    .pill-btn.active { background: var(--brand-gold-fixed); color: var(--fg-default); box-shadow: var(--shadow-sm); }
+    .pill-btn.mode-active { background: var(--color-white); color: var(--brand-primary-fixed); box-shadow: var(--shadow-sm); }
+    .header-auth-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--fg-default);
+      text-decoration: none;
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 6px 11px;
+      background: var(--brand-gold-fixed);
+      border: 1px solid var(--brand-gold-fixed);
+      border-radius: var(--radius-md);
+      white-space: nowrap;
+    }
+    .role-adaptation-note {
+      margin-top: 6px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface-subtle);
+      border-left: 3px solid var(--brand-primary-fixed);
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--fg-muted);
+    }
+    .role-adaptation-note strong { color: var(--fg-default); }
+
+    /* Auth Layout */
+    .auth-container {
+      max-width: 980px;
+      margin: 40px auto;
+      padding: 0 24px 64px 24px;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 32px;
+      align-items: center;
+    }
+    .auth-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      box-shadow: var(--shadow-md);
+    }
+    .auth-tabs {
+      display: flex;
+      background: var(--bg-surface-subtle);
+      border-radius: var(--radius-lg);
+      padding: 4px;
+      margin-bottom: 24px;
+    }
+    .auth-tab {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--fg-muted);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      text-align: center;
+      transition: all 150ms ease;
+    }
+    .auth-tab.active { background: var(--bg-surface); color: var(--brand-primary); box-shadow: var(--shadow-sm); }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .form-label { font-size: 13px; font-weight: 600; color: var(--fg-default); }
+    .form-input {
+      padding: 10px 14px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      background: var(--bg-surface);
+      color: var(--fg-default);
+    }
+    .form-input:focus { outline: none; border-color: var(--brand-primary-fixed); }
+    .btn-auth-submit {
+      width: 100%;
+      background: var(--brand-primary-fixed);
+      color: var(--color-white);
+      border: none;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn-auth-submit:hover { background: var(--brand-primary-hover); }
+    .access-type-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .access-type-btn {
+      background: var(--bg-surface-subtle);
+      border: 1px solid var(--border-default);
+      color: var(--fg-muted);
+      padding: 9px 10px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 150ms ease;
+    }
+    .access-type-btn:hover { border-color: var(--brand-primary); color: var(--fg-default); }
+    .access-type-btn.active {
+      background: rgba(15, 59, 157, 0.10);
+      border-color: var(--brand-primary-fixed);
+      color: var(--brand-primary);
+    }
+    .btn-auth-admin {
+      width: 100%;
+      margin-top: 12px;
+      background: var(--bg-surface-subtle);
+      color: var(--fg-default);
+      border: 1px solid var(--border-default);
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: all 150ms ease;
+    }
+    .btn-auth-admin:hover {
+      border-color: var(--brand-primary-fixed);
+      color: var(--brand-primary);
+      background: rgba(15, 59, 157, 0.06);
+    }
+    .admin-hint-pill {
+      display: none;
+      font-size: 12px;
+      color: var(--fg-muted);
+      background: var(--brand-gold-subtle);
+      border-left: 3px solid var(--finance-warning);
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+    }
+    .admin-hint-pill.visible { display: block; }
+
+    /* Info Side Panel */
+    .civic-info-panel { display: flex; flex-direction: column; gap: 16px; }
+    .civic-photo-banner {
+      position: relative;
+      height: 155px;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      border: 1px solid var(--border-default);
+    }
+    .civic-photo-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .civic-photo-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(15, 59, 157, 0.15) 20%, rgba(15, 23, 42, 0.85) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 14px 16px;
+      color: var(--color-white);
+    }
+    .info-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .info-icon { color: var(--brand-primary); flex-shrink: 0; }
+
+    /* States */
+    .state-view { display: none; }
+    .state-view.active { display: block; }
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-surface-subtle) 25%, var(--border-default) 50%, var(--bg-surface-subtle) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-md);
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    @media (max-width: 1120px) {
+      .header-content { flex-wrap: wrap; padding: 10px 0; }
+      .auth-container { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .nav-links { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body class="mode-citizen">
+
+  <!-- Mockup Toolbar Testare -->
+  <div class="mock-toolbar">
+    <div class="mock-toolbar-left">
+      <span class="badge-mock">DS-006 · APPROVED</span>
+      <strong>06-auth.html</strong> — Autentificare &amp; Înregistrare (<code>/login</code> &amp; <code>/register</code>)
+    </div>
+    <div class="mock-toolbar-right">
+      <span>Stare:</span>
+      <button class="btn-toggle active" data-state="normal" onclick="switchState('normal')">Normal</button>
+      <button class="btn-toggle" data-state="loading" onclick="switchState('loading')">Loading (Skeleton)</button>
+      <button class="btn-toggle" data-state="empty" onclick="switchState('empty')">Empty</button>
+      <button class="btn-toggle" data-state="error" onclick="switchState('error')">Error</button>
+      <div style="height: 16px; width: 1px; background: var(--border-default);"></div>
+      <button class="btn-toggle" id="theme-btn" onclick="toggleTheme()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+        Dark Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- Header Navigație Oficială Șura Mare -->
+  <header class="app-header">
+    <div class="header-content">
+      <a href="01-dashboard.html" class="brand-logo">
+        <img src="../assets/stema-sura-mare.png" alt="Stema Comunei Șura Mare" class="crest-img">
+        <div>
+          <div class="brand-title">COMUNA ȘURA MARE</div>
+          <div class="brand-sub">EXPLORATOR DE BUGET LOCAL</div>
+        </div>
+      </a>
+
+      <nav aria-label="Navigație principală">
+        <ul class="nav-links">
+          <li><a href="01-dashboard.html" class="nav-link">Tablou de Bord</a></li>
+          <li><a href="02-explorator.html" class="nav-link">Explorator Buget</a></li>
+          <li><a href="03-cautare.html" class="nav-link">Căutare</a></li>
+          <li><a href="04-comparatii.html" class="nav-link">Comparații An/An</a></li>
+          <li><a href="05-audit.html" class="nav-link">Metodologie &amp; Audit</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        <div class="pill-switch" role="group" aria-label="Mod vizualizare">
+          <button class="pill-btn mode-active" data-view-mode="citizen" onclick="setViewMode('citizen')">Mod Cetățean</button>
+          <button class="pill-btn" data-view-mode="analytic" onclick="setViewMode('analytic')">Mod Analitic</button>
+        </div>
+        <div class="pill-switch" role="group" aria-label="Selectare an bugetar">
+          <button class="pill-btn" data-year="2022" onclick="selectYear('2022')">2022</button>
+          <button class="pill-btn" data-year="2024" onclick="selectYear('2024')">2024</button>
+          <button class="pill-btn active" data-year="2025" onclick="selectYear('2025')">2025</button>
+        </div>
+        <a href="06-auth.html" class="header-auth-btn">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Cont
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- STAREA NORMALĂ -->
+  <main id="state-normal" class="state-view active">
+    <div class="auth-container">
+
+      <!-- Formular Login / Register -->
+      <section class="auth-card">
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login" onclick="setAuthTab('login')">Conectare (Login)</button>
+          <button class="auth-tab" id="tab-register" onclick="setAuthTab('register')">Cont Nou (Înregistrare)</button>
+        </div>
+
+        <form id="form-login" onsubmit="handleLoginSubmit(event)">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <span class="form-label">Tip acces</span>
+            <div class="access-type-group" role="group" aria-label="Selector tip acces">
+              <button type="button" class="access-type-btn active" id="access-public-btn" onclick="setLoginAccessType('public')">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Acces Public
+              </button>
+              <button type="button" class="access-type-btn" id="access-admin-btn" onclick="setLoginAccessType('admin')">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Administrator Primărie
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-hint-pill" id="admin-login-hint">
+            <strong>Acces instituțional:</strong> Contul de Administrator Primărie este preconfigurat de instituție și redirecționează direct către panoul de administrare bugetară (<code>/admin</code>).
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-email">Adresă de Email</label>
+            <input type="email" id="login-email" class="form-input" placeholder="exemplu@domeniu.ro" required>
+          </div>
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between;">
+              <label class="form-label" for="login-password">Parolă</label>
+              <a href="#" style="font-size: 12px; color: var(--brand-primary); text-decoration: none;">Ai uitat parola?</a>
+            </div>
+            <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn-auth-submit" id="login-submit-btn">Intră în cont</button>
+
+          <button type="button" class="btn-auth-admin" onclick="loginAsAdmin()">
+            <svg class="icon" viewBox="0 0 24 24" style="color: var(--brand-primary-fixed);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Autentificare ca Administrator Primărie
+          </button>
+        </form>
+
+        <form id="form-register" style="display: none;" onsubmit="event.preventDefault(); showToast('Cont creat! Te rugăm să te autentifici.'); setAuthTab('login');">
+          <div class="form-group">
+            <label class="form-label">Nume complet</label>
+            <input type="text" class="form-input" placeholder="Ion Popescu" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="profile-role-select">Rol / Profil utilizator</label>
+            <select class="form-input" id="profile-role-select" onchange="onProfileRoleChange(this.value)">
+              <option value="citizen-sura">Cetățean Comuna Șura Mare</option>
+              <option value="citizen-hamba">Cetățean Satul Hamba</option>
+              <option value="analytic-jurnalist">Jurnalist / Reprezentant Media</option>
+              <option value="analytic-consilier">Consilier Local</option>
+              <option value="analytic-cercetator">Cercetător / Student</option>
+            </select>
+            <div class="role-adaptation-note" id="role-adaptation-note">
+              <strong>Adaptare automată interfață (<span id="role-mode-label">Mod Cetățean</span>):</strong>
+              Rolurile publice se pot înregistra direct aici (profilurile de cetățean pornesc în <em>Mod Cetățean</em>, iar <em>Jurnalist, Consilier Local</em> și <em>Cercetător</em> activează <em>Mod Analitic</em> cu coduri bugetare și exporturi avansate). Contul de <strong>Administrator Primărie</strong> este preconfigurat de instituție și se accesează din tab-ul <a href="#" onclick="event.preventDefault(); setAuthTab('login'); setLoginAccessType('admin');" style="color: var(--brand-primary); font-weight: 700;">Autentificare</a>.
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Adresă de Email</label>
+            <input type="email" class="form-input" placeholder="exemplu@domeniu.ro" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Parolă (minim 8 caractere)</label>
+            <input type="password" class="form-input" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn-auth-submit">Creează cont cetățean</button>
+        </form>
+      </section>
+
+      <!-- Panou Informativ Civic cu Fotografie Reală -->
+      <aside class="civic-info-panel">
+        <div class="civic-photo-banner">
+          <img src="../assets/primarie.jpg" alt="Sediul Primăriei Comunei Șura Mare">
+          <div class="civic-photo-overlay">
+            <span style="font-size: 11px; color: var(--brand-gold-fixed); font-weight: 700;">COMUNA ȘURA MARE & HAMBA</span>
+            <h2 style="font-size: 17px; font-weight: 800; line-height: 1.2;">Dialog civic deschis pe bugetul local</h2>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <svg class="icon-lg info-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <div>
+            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 2px;">Adnotări pe Linii de Buget</h3>
+            <p style="font-size: 12px; color: var(--fg-muted);">Poți adăuga întrebări și comentarii pe orice capitol sau proiect de investiții din Șura Mare și Hamba.</p>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <svg class="icon-lg info-icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <div>
+            <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 2px;">Securitate & Confidențialitate (D-006)</h3>
+            <p style="font-size: 12px; color: var(--fg-muted);">Autentificare securizată cu cookie-uri HTTP-only și parole hash-uite cu bcrypt, fără dependențe terțe OAuth.</p>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- STAREA LOADING: SKELETONS -->
+  <main id="state-loading" class="state-view">
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="skeleton" style="width: 100%; height: 40px; margin-bottom: 24px;"></div>
+        <div class="skeleton" style="width: 100%; height: 50px; margin-bottom: 16px;"></div>
+        <div class="skeleton" style="width: 100%; height: 50px; margin-bottom: 16px;"></div>
+        <div class="skeleton" style="width: 100%; height: 44px;"></div>
+      </div>
+      <div class="skeleton" style="width: 100%; height: 300px;"></div>
+    </div>
+  </main>
+
+  <!-- STAREA EMPTY -->
+  <main id="state-empty" class="state-view">
+    <div class="auth-container">
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl);">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--fg-muted); margin-bottom: 16px;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">Înregistrările publice sunt temporar oprite</h2>
+        <p style="font-size: 13px; color: var(--fg-muted); margin-bottom: 16px;">Contactează administratorul primăriei pentru alocarea unui cont.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Resetează</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- STAREA ERROR -->
+  <main id="state-error" class="state-view">
+    <div class="auth-container">
+      <div style="grid-column: 1 / -1; text-align: center; padding: 48px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl);">
+        <svg class="icon-xl" viewBox="0 0 24 24" style="stroke: var(--finance-critical); margin-bottom: 16px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <h2 style="font-size: 18px; font-weight: 700; color: var(--finance-critical); margin-bottom: 6px;">Eroare la verificarea credențialelor</h2>
+        <p style="font-size: 13px; color: var(--fg-muted); margin-bottom: 16px;">Serviciul intern de sesiuni bcryptjs a întâmpinat o eroare.</p>
+        <button class="btn-toggle active" onclick="switchState('normal')">Reîncearcă</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ── Toast notifications (replaces alert()) ── */
+    function showToast(msg, type) {
+      type = type || 'success';
+      var t = document.createElement('div');
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
+      t.setAttribute('aria-atomic', 'true');
+      t.style.cssText = [
+        'position:fixed;bottom:24px;right:24px;z-index:9999',
+        'padding:12px 20px;border-radius:var(--radius-lg,8px)',
+        'font-size:14px;font-weight:600;max-width:380px',
+        'box-shadow:var(--shadow-lg);transition:opacity 300ms ease',
+        'font-family:var(--font-sans)'
+      ].join(';');
+      t.style.background = type === 'success' ? 'var(--finance-positive)'
+                         : type === 'warn'    ? 'var(--finance-warning)'
+                         :                      'var(--brand-primary-fixed)';
+      t.style.color = 'var(--color-white)';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() {
+        t.style.opacity = '0';
+        setTimeout(function() { if (t.parentNode) t.remove(); }, 350);
+      }, 3200);
+    }
+
+    let loginAccessType = 'public';
+    function setLoginAccessType(type) {
+      loginAccessType = type;
+      const isAdmin = type === 'admin';
+      document.getElementById('access-public-btn').classList.toggle('active', !isAdmin);
+      document.getElementById('access-admin-btn').classList.toggle('active', isAdmin);
+      document.getElementById('admin-login-hint').classList.toggle('visible', isAdmin);
+      document.getElementById('login-submit-btn').textContent = isAdmin
+        ? 'Intră în Panoul de Administrare'
+        : 'Intră în cont';
+      document.getElementById('login-email').placeholder = isAdmin
+        ? 'admin@primarie-suramare.ro'
+        : 'exemplu@domeniu.ro';
+    }
+    function handleLoginSubmit(event) {
+      event.preventDefault();
+      if (loginAccessType === 'admin') {
+        showToast('Autentificare ca Administrator Primărie reușită! Redirecționare către /admin...');
+        window.location.href = '07-admin.html';
+      } else {
+        showToast('Autentificare simulată cu succes!');
+        window.location.href = '01-dashboard.html';
+      }
+    }
+    function loginAsAdmin() {
+      setLoginAccessType('admin');
+      window.location.href = '07-admin.html';
+    }
+    function setAuthTab(tab) {
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+      document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
+      document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
+    }
+    function onProfileRoleChange(val) {
+      const isAnalytic = val.startsWith('analytic-');
+      setViewMode(isAnalytic ? 'analytic' : 'citizen');
+      const lbl = document.getElementById('role-mode-label');
+      if (lbl) lbl.textContent = isAnalytic ? 'Mod Analitic' : 'Mod Cetățean';
+    }
+    function setViewMode(mode) {
+      document.body.classList.toggle('mode-citizen', mode === 'citizen');
+      document.body.classList.toggle('mode-analytic', mode === 'analytic');
+      document.querySelectorAll('[data-view-mode]').forEach(b => {
+        b.classList.toggle('mode-active', b.dataset.viewMode === mode);
+      });
+    }
+    function selectYear(yr) {
+      document.querySelectorAll('[data-year]').forEach(b => b.classList.toggle('active', b.dataset.year === yr));
+    }
+    function switchState(stateName) {
+      document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
+      document.getElementById('state-' + stateName).classList.add('active');
+      document.querySelectorAll('.mock-toolbar .btn-toggle[data-state]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.state === stateName);
+      });
+    }
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      const btn = document.getElementById('theme-btn');
+      btn.innerHTML = isDark
+        ? '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Light Mode'
+        : '<svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg> Dark Mode';
+    }
+  </script>
+</body>
+</html>
