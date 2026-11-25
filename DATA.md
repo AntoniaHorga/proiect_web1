@@ -3,8 +3,19 @@
 ## 1. Sursa și Licența Datelor
 - Entitate analizata: Comuna Sura Mare, Judetul Sibiu (CUI: 4241184)
 - Sursa oficiala: Site-ul oficial al Primariei Comunei Sura Mare, sectiunea Transarenta Decizionala/Documente si informatii financiare
+-URL: https://primariasuramare.ro/transparenta-decizionala/documente-si-informatii-financiare/
 - Perioada acoperita: Anii 2022, 2024, 2025
-- Data colectarii: Noiembrie 2026
+- Data colectarii: 10 Noiembrie 2026
+- Licență: site-ul nu are o licență specifică pentru documentele
+  financiare. Subsolul conține doar o mențiune generică de copyright
+  a site-ului („© Copyright 2020–2026 | Powered by TNT Computers |
+  All Rights Reserved”, verificat la 25 noiembrie 2026). Rapoartele de
+  execuție bugetară sunt documente oficiale ale unei autorități publice
+  locale; conform Legii 8/1996, art. 9 lit. b, textele oficiale de natură
+  administrativă nu beneficiază de protecția dreptului de autor, iar
+  reutilizarea informațiilor din sectorul public este încadrată de
+  Legea 179/2022 privind datele deschise. Aplicația citează sursa și
+  nu modifică sumele.
 
 ## 2. Inventarul Fișierelor din `data/raw/`
 Datele oficiale au fost publicate sub formă de rapoarte PDF și convertite în format `.xlsx` pentru procesare. Fișierele originale sunt păstrate în arhiva brută pentru trasabilitate.
