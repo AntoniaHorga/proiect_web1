@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { EXPENSE_LAYOUT, LayoutError, REVENUE_LAYOUT, validateLayout, type ColumnLayout } from '../../src/lib/budget/layout';
+import {
+  amountFieldsFor,
+  EXPENSE_LAYOUT,
+  LayoutError,
+  REVENUE_LAYOUT,
+  validateLayout,
+  type BudgetKind,
+  type ColumnLayout,
+} from '../../src/lib/budget/layout';
 import { parseBudgetFile } from '../../src/lib/budget/parse';
 import { EXPENSE_ROWS, EXPENSE_WIDTH, cellsToCsv, csv, toCells } from './helpers';
 
@@ -26,6 +34,17 @@ describe('validateLayout', () => {
   it('rejects an amount that does not belong to the kind', () => {
     const amounts = { ...REVENUE_LAYOUT.amounts, plati_efectuate: 20 };
     expect(() => validateLayout({ ...REVENUE_LAYOUT, amounts })).toThrow(LayoutError);
+  });
+
+  it('rejects an unknown kind with a LayoutError, e.g. a layout read back from jsonb', () => {
+    for (const kind of ['Expense', 'constructor', '__proto__', '']) {
+      const layout = { ...EXPENSE_LAYOUT, kind } as unknown as ColumnLayout;
+      expect(() => validateLayout(layout)).toThrow(LayoutError);
+    }
+  });
+
+  it('does not treat an unknown kind as revenue', () => {
+    expect(() => amountFieldsFor('Expense' as unknown as BudgetKind)).toThrow(LayoutError);
   });
 
   it('rejects a negative header row count', () => {

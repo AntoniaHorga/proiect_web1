@@ -61,7 +61,8 @@ export const importBatches = pgTable(
     // D-004: a discrepancy blocks publication without a justification of at least 20 characters.
     check(
       'import_batches_publication_gate_check',
-      sql`${t.status} <> 'published' OR ${t.reconciliationStatus} IN ('exact_match', 'rounded_match') OR char_length(btrim(coalesce(${t.justification}, ''))) >= 20`,
+      // Leading/trailing whitespace of any kind (tabs, newlines) does not count, as in canPublish.
+      sql`${t.status} <> 'published' OR ${t.reconciliationStatus} IN ('exact_match', 'rounded_match') OR char_length(regexp_replace(coalesce(${t.justification}, ''), '^[[:space:]]+|[[:space:]]+$', '', 'g')) >= 20`,
     ),
   ],
 );

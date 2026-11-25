@@ -23,7 +23,7 @@ data/raw/*.xlsx ──► parseBudgetFile ──► reconcile ──► importBu
 | Parser | `src/lib/budget/parse.ts` | DATA.md §4.2 rules 1–7 → logical lines with blocks, codes, summary/leaf flags | SheetJS |
 | Reconciliation | `src/lib/budget/reconcile.ts` | total vs chapters, parent vs children, functional vs economic total; D-004 statuses; `canPublish` | — |
 | Schema | `src/db/schema.ts`, `drizzle/` | 7 tables and their constraints | PostgreSQL |
-| Import | `src/db/import.ts`, `scripts/import-raw.ts` | parse + reconcile + store in one transaction; skips a file already imported (sha256) | PostgreSQL |
+| Import | `src/db/import.ts`, `scripts/import-raw.ts` | parse + reconcile + store in one transaction; a file already imported (same sha256, `ON CONFLICT DO NOTHING`) is reported as `already_imported` | PostgreSQL |
 | Repository docs & ledger | `docs/agents/` | rules, decisions, architecture | agent / developer |
 | Agentic workflows | `.claude/`, `.agents/` | planning and building automations | agent CLI / IDE |
 
@@ -63,3 +63,8 @@ PostgreSQL 16 service container, and the ledger lint. No deployment yet.
 ## Boundaries
 Local development boundary. Secrets are never committed (`.env` is git-ignored). The
 integration tests only touch a `*_test` database and roll back every test.
+PostgreSQL is published on `127.0.0.1:5432` only.
+
+Required before the upload and publication routes exist (deferred from the PR #1 review):
+- Upload: input limits for the parser (file size, sheet range, rows, ZIP signature), see Q-008.
+- Publication: the route never accepts `reconciliation_status` from the client, see Q-009.

@@ -2,6 +2,7 @@
 // Safety: they only run on a database whose name ends in `_test`, apply the
 // migrations (already-applied ones are skipped) and run every test inside a
 // transaction that is rolled back. Nothing is deleted and nothing is committed.
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { sql, TransactionRollbackError } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -17,6 +18,7 @@ import {
   localityStats,
 } from '../../src/db/schema';
 import { EXPENSE_LAYOUT, REVENUE_LAYOUT } from '../../src/lib/budget/layout';
+import { canPublish } from '../../src/lib/budget/reconcile';
 
 loadEnv();
 const url = requireEnv('TEST_DATABASE_URL');
@@ -137,6 +139,21 @@ describe('publication gate (D-004)', () => {
     });
   });
 
+  it('does not count tabs and newlines around the justification, like canPublish', async () => {
+    await inRollback(async (tx) => {
+      const gate = 'import_batches_publication_gate_check';
+      const discrepancy = { status: 'published', reconciliationStatus: 'discrepancy_detected' };
+      const padded = `\n\t ${'x'.repeat(19)} \t\n`;
+      expect(canPublish('discrepancy_detected', padded)).toBe(false);
+      await expectRefused(tx, (sp) => sp.insert(importBatches).values(batch({ ...discrepancy, justification: padded })), gate);
+      await expectRefused(
+        tx,
+        (sp) => sp.insert(importBatches).values(batch({ ...discrepancy, justification: '\n'.repeat(20) })),
+        gate,
+      );
+    });
+  });
+
   it('publishes exact and rounded matches without a justification', async () => {
     await inRollback(async (tx) => {
       await tx.insert(importBatches).values(batch({ status: 'published', reconciliationStatus: 'exact_match' }));
@@ -210,6 +227,22 @@ describe('importBudgetFile', () => {
       expect(BigInt(sums!.leaves)).toBe(1242339100n);
 
       expect(await importBudgetFile(tx, input)).toMatchObject({ imported: false, reason: 'already_imported' });
+    });
+  });
+
+  it('returns already_imported, not a unique-key error, when the same file was stored in the meantime', async () => {
+    await inRollback(async (tx) => {
+      const data = readFileSync('data/raw/venituri2022.xlsx');
+      const sha256 = createHash('sha256').update(data).digest('hex');
+      // Simulates a concurrent import that stored the same file after our check:
+      // the row exists, so the import must report it instead of failing on the unique key.
+      const [existing] = await tx
+        .insert(importBatches)
+        .values(batch({ kind: 'revenue', sourceSha256: sha256, sourceFilename: 'venituri2022.xlsx' }))
+        .returning({ id: importBatches.id });
+      const input = { data, filename: 'venituri2022.xlsx', format: 'xlsx' as const, fiscalYear: 2022, layout: REVENUE_LAYOUT };
+      const outcome = await importBudgetFile(tx, input);
+      expect(outcome).toEqual({ imported: false, reason: 'already_imported', importId: existing!.id });
     });
   });
 

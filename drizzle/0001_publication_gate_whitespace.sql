@@ -1,0 +1,2 @@
+ALTER TABLE "import_batches" DROP CONSTRAINT "import_batches_publication_gate_check";--> statement-breakpoint
+ALTER TABLE "import_batches" ADD CONSTRAINT "import_batches_publication_gate_check" CHECK ("import_batches"."status" <> 'published' OR "import_batches"."reconciliation_status" IN ('exact_match', 'rounded_match') OR char_length(regexp_replace(coalesce("import_batches"."justification", ''), '^[[:space:]]+|[[:space:]]+$', '', 'g')) >= 20);

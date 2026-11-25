@@ -68,11 +68,17 @@ export class LayoutError extends Error {
 }
 
 export function amountFieldsFor(kind: BudgetKind): readonly AmountField[] {
-  return kind === 'expense' ? EXPENSE_AMOUNT_FIELDS : REVENUE_AMOUNT_FIELDS;
+  if (kind === 'expense') return EXPENSE_AMOUNT_FIELDS;
+  if (kind === 'revenue') return REVENUE_AMOUNT_FIELDS;
+  throw new LayoutError(`unknown kind "${String(kind)}"`);
 }
 
 /** Throws LayoutError when a required field is missing, an index is invalid or two fields share a column. */
 export function validateLayout(layout: ColumnLayout): void {
+  // A layout may come back from jsonb, so the kind is checked at runtime too.
+  if (layout.kind !== 'expense' && layout.kind !== 'revenue') {
+    throw new LayoutError(`unknown kind "${String(layout.kind)}"`);
+  }
   if (!Number.isInteger(layout.headerRows) || layout.headerRows < 0) {
     throw new LayoutError(`headerRows must be a non-negative integer, got ${layout.headerRows}`);
   }

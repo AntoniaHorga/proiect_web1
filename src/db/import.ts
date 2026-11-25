@@ -30,16 +30,13 @@ const a = (line: ParsedLine, field: keyof ParsedLine['amounts']) => line.amounts
 /** `db` may be a transaction: the import then runs in a savepoint (used by the integration tests). */
 export async function importBudgetFile(db: Db | Tx, input: ImportInput): Promise<ImportOutcome> {
   const sha256 = createHash('sha256').update(input.data).digest('hex');
-  const existing = await db
-    .select({ id: importBatches.id })
-    .from(importBatches)
-    .where(eq(importBatches.sourceSha256, sha256));
-  if (existing[0]) return { imported: false, reason: 'already_imported', importId: existing[0].id };
-
   const parsed = parseBudgetFile(input.data, input.format, input.layout);
   const reconciliation = reconcile(parsed);
 
-  const importId = await db.transaction(async (tx) => {
+  // The duplicate check is the insert itself (ON CONFLICT on the sha256 key), inside the
+  // transaction: a file stored by a concurrent import is reported as already imported
+  // instead of failing on the unique key.
+  const result = await db.transaction(async (tx) => {
     const [batch] = await tx
       .insert(importBatches)
       .values({
@@ -52,8 +49,16 @@ export async function importBudgetFile(db: Db | Tx, input: ImportInput): Promise
         reconciliationStatus: reconciliation.status,
         reconciledAt: new Date(),
       })
+      .onConflictDoNothing({ target: importBatches.sourceSha256 })
       .returning({ id: importBatches.id });
-    const id = batch!.id;
+    if (!batch) {
+      const [existing] = await tx
+        .select({ id: importBatches.id })
+        .from(importBatches)
+        .where(eq(importBatches.sourceSha256, sha256));
+      return { existingId: existing!.id, importId: undefined };
+    }
+    const id = batch.id;
 
     const common = (l: ParsedLine) => ({
       importId: id,
@@ -103,8 +108,11 @@ export async function importBudgetFile(db: Db | Tx, input: ImportInput): Promise
 
     const checks = reconciliation.checks.map((c) => ({ importId: id, ...c }));
     await insertChunks(checks, (chunk) => tx.insert(reconciliationChecks).values(chunk));
-    return id;
+    return { existingId: undefined, importId: id };
   });
 
-  return { imported: true, importId, lines: parsed.lines.length, reconciliation };
+  if (result.existingId !== undefined) {
+    return { imported: false, reason: 'already_imported', importId: result.existingId };
+  }
+  return { imported: true, importId: result.importId!, lines: parsed.lines.length, reconciliation };
 }

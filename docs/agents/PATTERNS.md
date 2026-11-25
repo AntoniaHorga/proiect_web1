@@ -9,6 +9,7 @@
 - PATTERN-001 · Plan before build for non-trivial changes · approved
 - PATTERN-002 · Zero raw hex in mock CSS — all values through CSS custom properties · candidate
 - PATTERN-003 · Database tests run in rolled-back transactions on a *_test database · candidate
+- PATTERN-004 · Public URLs are built from budget codes and year, never from database ids · candidate
 
 ---
 
@@ -36,4 +37,12 @@
 - **Example:** `tests/integration/db.test.ts`
 - **Why:** Tests leave no data behind, never touch the dev database, and need no destructive clean-up.
 - **Source:** build session 2026-11-25 (user asked for the no-delete approach) · confidence medium (one implementation)
+
+## PATTERN-004 · Public URLs are built from budget codes and year, never from database ids
+- **Status:** candidate
+- **Use when:** Any route, link, canonical URL, export or structured-data identifier that points to a budget year, chapter or line.
+- **How:** Build the path from the fiscal year and the dotted codes (`functional_code`, `economic_code`, and the block for expenses), e.g. `/explorator?an=2025&cod=70.02.05`. Never expose `expense_lines.id`, `revenue_lines.id` or `import_batches.id`: they change on every re-import.
+- **Example:** none yet (no routes); decided in the review of PR #1, 2026-11-25. All six imports have no duplicate code tuple per import and block (checked 2026-11-25).
+- **Why:** Stable, readable URLs that survive re-imports and that search engines and AI assistants can cite.
+- **Source:** user, review of PR #1 · confidence medium (no implementation yet)
 
