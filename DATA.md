@@ -26,7 +26,7 @@ La inspecția celor 6 fișiere Excel au fost identificate următoarele probleme 
    - *Explicație contabilă:* Primul bloc (rândurile `2`–`71` în 2022) prezintă execuția agregată exclusiv pe clasificația funcțională (Capitole/Subcapitole/Paragrafe). Al doilea bloc (începând cu a doua apariție a lui `5002`) prezintă mai întâi rezumatul pe clasificația economică (Titluri `10`–`81`), urmat de detalierea mixtă (Capitol funcțional × Titlu/Articol economic).
    - *Regulă de procesare:* Parserul delimitează explicit cele două secțiuni la a doua apariție a codului `5002`, evitând dublarea totalurilor
 2. **Rânduri agregatoare de nivel superior (`Partea I-a` – `Partea V-a`) și subtotaluri intermediare:**
-   - *Observație:* Codurile de tip `5100.02`, `6000.02`, `6500.02`, `7000.02`, `8000.02` (la cheltuieli) și `0002`, `0003`, `0004` (la venituri), precum și grupele `01 Cheltuieli curente`, `70 Cheltuieli de capital`, `79 Operațiuni financiare`, reprezintă subtotaluri agregatoare.
+   - *Observație:* Codurile de tip `5100.02`, `6000.02`, `6500.02`, `7000.02`, `8000.02` (la cheltuieli) și `0002`, `0003`, `0004` (la venituri), precum și grupele `01 Cheltuieli curente`, `70 Cheltuieli de capital`, `79 Operațiuni financiare`, `84 Plăți efectuate în anii precedenți și recuperate în anul curent` (agregă titlul `85`), reprezintă subtotaluri agregatoare.
    - *Regulă de procesare:* Liniile agregatoare sunt marcate cu `is_summary = true` și excluse din agregările SQL pe linii detaliate, fiind păstrate doar pentru verificarea de reconciliere (suma subcapitolelor = total capitol)
 3. **Denumiri sparte pe mai multe rânduri (rânduri fără cod bugetar):**
    - *Observație:* La conversia din PDF, textele lungi s-au rupt pe 2–4 rânduri consecutive, lăsând coloanele `0`–`5` complet goale (`NaN`): 87 rânduri în `cheltuieli2022.xlsx`, 103 în `cheltuieli2024.xlsx`, 133 în `cheltuieli2025.xlsx`, 48 în `venituri2022.xlsx`, 71 în `venituri2024.xlsx` și 79 în `venituri2025.xlsx`. Sumele numerice apar doar pe **ultimul rând** al fragmentului de text.
@@ -35,4 +35,12 @@ La inspecția celor 6 fișiere Excel au fost identificate următoarele probleme 
    - *Observație:* Există valori negative valide contabil care nu trebuie tratate ca erori de parsare:
      - `-5.953` lei în `cheltuieli2022.xlsx` și `-33.069` lei în `cheltuieli2025.xlsx` (*Plăți efectuate recuperate în anul curent*).
      - `-708.761` lei în `venituri2025.xlsx` la subcapitolul `37.02.03` (din secțiunea de funcționare pentru finanțarea secțiunii de dezvoltare a bugetului local — cu semnul minus).
-5. 
+5. **Sume sub 1.000 lei stocate ca text:**
+   - *Observație:* În toate cele 6 fișiere, fiecare sumă cu valoare absolută sub 1.000 este o celulă de tip text (`'890'`, `'25'`), în total 156 de celule (33 în `cheltuieli2022.xlsx`, 30 în `cheltuieli2024.xlsx`, 67 în `cheltuieli2025.xlsx`, 4 în `venituri2022.xlsx`, 11 în `venituri2024.xlsx`, 11 în `venituri2025.xlsx`). Sumele de la 1.000 în sus sunt celule numerice. Toate sumele sunt numere întregi de lei, fără zecimale. O celulă goală într-o coloană de sumă înseamnă 0.
+   - *Regulă de procesare:* Parserul acceptă o celulă numerică sau un text care, după eliminarea spațiilor de la capete, respectă `^-?\d+$`, și o convertește în bani (× 100, D-007). Orice alt text într-o coloană de sumă este eroare de parsare, raportată cu rândul și coloana. Celula goală devine 0.
+6. **Coduri ierarhice rare și cod de capitol repetat:**
+   - *Observație:* Fiecare rând completează doar coloana nivelului său (de ex. un rând de subcapitol are doar coloana `1`); nivelurile superioare lipsesc. Uneori codul de capitol este repetat pe un rând de nivel inferior: în `cheltuieli2022.xlsx` rândul `28` are `6602` (col. 0) și `50` (col. 2). În fișierele de venituri tiparul este constant (`0402` + `01` = `04.02.01`).
+   - *Regulă de procesare:* Parserul moștenește codurile de nivel superior de la rândurile anterioare. Un cod de capitol egal cu capitolul curent, pe un rând care are și subcapitol sau paragraf, nu deschide un capitol nou. Fără această regulă, capitolul `66.02` din 2022 nu se reconciliază (5.343 lei raportat față de 10.686 lei calculat).
+7. **Capitol fără rând propriu:**
+   - *Observație:* În `venituri2022.xlsx`, capitolul `37.02` nu are rând de capitol, ci doar subcapitolele `37.02.03` (−721.000 lei prevederi) și `37.02.04` (+721.000 lei).
+   - *Regulă de procesare:* La reconcilierea totalului general, un capitol fără rând propriu contribuie cu suma subcapitolelor sale.

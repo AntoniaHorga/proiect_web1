@@ -26,6 +26,7 @@
 - **Evidence:** AGENTS.md:58
 - **Source:** user · confidence high
 - **Owner note:** Setup rule for repository workflow.
+- **Confirmed:** 2026-11-25
 
 ## D-002 · Full technology stack and architecture
 - **Status:** approved
@@ -35,6 +36,7 @@
 - **Rejected:** Separate backend services / microservices (unnecessary complexity for coursework), client-side only aggregation, or non-relational database.
 - **Evidence:** docs/SCOPE.md#L45-L53, docs/agents/OPEN-QUESTIONS.md#L16-L23
 - **Source:** user · confidence high
+- **Confirmed:** 2026-11-25
 
 ## D-003 · Exact numeric representation for monetary values
 - **Status:** approved
@@ -44,6 +46,7 @@
 - **Rejected:** Storing amounts as floating-point numbers or raw unstructured strings.
 - **Evidence:** docs/brief.md#L26, docs/SCOPE.md#L50-L51
 - **Source:** user · confidence high
+- **Confirmed:** 2026-11-25
 
 ## D-004 · Reconciliation tolerance and publication gate
 - **Status:** approved
@@ -53,6 +56,7 @@
 - **Rejected:** Zero tolerance without explanation capability (would block valid data with minor rounding artifacts) or automatic publishing without audit notes.
 - **Evidence:** docs/brief.md#L29-L31, docs/SCOPE.md#L67-L77
 - **Source:** user · confidence high
+- **Confirmed:** 2026-11-25
 
 ## D-005 · Local containerized storage with abstracted interface for audit files
 - **Status:** approved
@@ -62,6 +66,7 @@
 - **Rejected:** Storing files directly in the PostgreSQL database as BLOBs or tightly coupling storage logic to the local filesystem without an abstraction layer.
 - **Evidence:** docs/brief.md#L24, docs/SCOPE.md#L52, docs/agents/OPEN-QUESTIONS.md#L28-L33
 - **Source:** user · confidence high
+- **Confirmed:** 2026-11-25
 
 ## D-006 · Session-based authentication via HTTP-only cookies and bcrypt password hashing
 - **Status:** approved
@@ -71,6 +76,7 @@
 - **Rejected:** Third-party OAuth providers (Google, GitHub) or insecure localStorage-based JWT storage.
 - **Evidence:** docs/SCOPE.md#L55-L65, docs/brief.md#L21
 - **Source:** user · confidence high
+- **Confirmed:** 2026-11-25
 
 ## D-007 · Monetary amounts stored as BIGINT in bani
 - **Status:** approved

@@ -18,6 +18,7 @@
 - **Example:** AGENTS.md:23
 - **Why:** Prevents regressions, eliminates speculative code, and guarantees user alignment before editing.
 - **Source:** user · confidence high
+- **Confirmed:** 2026-11-25
 
 ## PATTERN-002 · Zero raw hex in mock CSS — all values through CSS custom properties
 - **Status:** candidate
