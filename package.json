@@ -8,14 +8,24 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:db": "vitest run --config vitest.integration.config.ts",
+    "db:up": "docker compose up -d --wait db",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:import": "tsx scripts/import-raw.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.10",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vitest": "5.1.1"
   },
   "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

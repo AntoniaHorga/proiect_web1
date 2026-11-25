@@ -8,6 +8,7 @@
 ## Index
 - PATTERN-001 · Plan before build for non-trivial changes · approved
 - PATTERN-002 · Zero raw hex in mock CSS — all values through CSS custom properties · candidate
+- PATTERN-003 · Database tests run in rolled-back transactions on a *_test database · candidate
 
 ---
 
@@ -27,3 +28,12 @@
 - **Example:** `docs/design/mocks/01-dashboard.html` after fix/mock-design-compliance (commit e20dbfe)
 - **Why:** Guarantees theme-switching works without touching component CSS, enables contrast-compliant dark mode without duplication, and makes WCAG audits scriptable.
 - **Source:** build session 2026-11-24 · confidence medium (one implementation)
+
+## PATTERN-003 · Database tests run in rolled-back transactions on a *_test database
+- **Status:** candidate
+- **Use when:** Writing any test that talks to PostgreSQL, locally or in CI.
+- **How:** Read the URL from `TEST_DATABASE_URL` and refuse to run unless the database name ends in `_test`. Apply migrations with Drizzle's `migrate` (already-applied ones are skipped). Run each test inside `inRollback()` (a transaction ended by `tx.rollback()`), and test refused statements with `expectRefused()` inside a savepoint, asserting the constraint name. Code under test accepts a transaction handle (`Db | Tx`) so its own transactions become savepoints. Never drop or truncate.
+- **Example:** `tests/integration/db.test.ts`
+- **Why:** Tests leave no data behind, never touch the dev database, and need no destructive clean-up.
+- **Source:** build session 2026-11-25 (user asked for the no-delete approach) · confidence medium (one implementation)
+

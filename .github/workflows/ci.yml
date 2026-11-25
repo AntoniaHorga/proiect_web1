@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # Throwaway credentials of a container that lives only for this job.
+          POSTGRES_USER: budget
+          POSTGRES_PASSWORD: ci-only
+          # The integration tests refuse any database whose name does not end in _test.
+          POSTGRES_DB: budget_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U budget -d budget_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://budget:ci-only@localhost:5432/budget_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Integration tests (each test rolls back; database must end in _test)
+        run: npm run test:db
+      - name: Ledger lint
+        run: python3 docs/agents/tools/ledger-lint.py
