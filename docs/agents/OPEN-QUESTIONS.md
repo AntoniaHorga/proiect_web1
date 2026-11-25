@@ -15,6 +15,7 @@
 - Q-004 · Care este formatul și granularitatea exportului CSV din explorator?
 - Q-005 · Cum gestionăm eventualele encoding-uri non-UTF-8 sau denumiri fragmentate la importul de fișiere noi? · _answered_
 - Q-006 · Ce ierarhie folosește treemap-ul, dat fiind că datele nu încrucișează Subcapitol × Titlu? · _answered_
+- Q-007 · Cum lipim fragmentele de denumire care se termină cu cratimă?
 
 ---
 
@@ -62,3 +63,11 @@
 - **Evidence:** În cele 3 fișiere de cheltuieli, blocul funcțional are Capitol → Subcapitol → Paragraf fără titluri economice, iar blocul mixt are Capitol × Titlu/Articol/Alineat fără subcapitole (0 rânduri cu subcapitol sau paragraf în blocul mixt, verificat 2026-11-25).
 - **Proposed answer:** Două vederi separate: funcțională (Capitol → Subcapitol → Paragraf) și economică (Capitol → Titlu → Articol). Detalii în propunerea din sesiunea 2026-11-25.
 - **Answer:** Exploratorul are două vederi, salvate în URL (`?view=`): `functional` (Domeniu → Capitol → Subcapitol → Paragraf, blocul funcțional) și `economic` (Capitol → Titlu → Articol, blocul mixt). Comutatorul Funcționare/Investiții funcționează doar în vederea economică; în vederea funcțională e dezactivat, cu explicație text. Vederea economică afișează o notă: `70.02.05` nu poate fi separat de `70.02`. Actualizarea mock-ului DS-002 este un pas separat. Aprobat 2026-11-25.
+
+## Q-007 · Cum lipim fragmentele de denumire care se termină cu cratimă?
+- **Status:** open
+- **Date:** 2026-11-25
+- **Blocks:** Afișarea corectă a denumirilor lungi (căutare DS-003, explorator DS-002). Nu afectează sumele sau reconcilierea.
+- **Who answers:** Utilizatorul.
+- **Evidence:** Regula 3 (DATA.md §4.2) lipește fragmentele cu un spațiu. Rezultă `cheltuie- lilor`, `dezvol- tare`, `intercomuni- tare` (cuvinte despărțite la capăt de rând), dar și `administrativ- teritoriale` (cratimă reală). O regulă automată nu le poate deosebi pe toate fără un dicționar.
+
