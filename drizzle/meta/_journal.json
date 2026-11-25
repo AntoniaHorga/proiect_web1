@@ -15,6 +15,13 @@
       "when": 1795609062627,
       "tag": "0001_publication_gate_whitespace",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795610199944,
+      "tag": "0002_parser_version_one_published",
+      "breakpoints": true
     }
   ]
 }

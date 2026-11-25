@@ -1,8 +1,8 @@
 // Imports one budget file: parse, reconcile, store. Never publishes (status `reconciled`).
 import { createHash } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, lt } from 'drizzle-orm';
 import type { ColumnLayout } from '../lib/budget/layout';
-import { parseBudgetFile, type FileFormat, type ParsedLine } from '../lib/budget/parse';
+import { PARSER_VERSION, parseBudgetFile, type FileFormat, type ParsedLine } from '../lib/budget/parse';
 import { reconcile, type ReconciliationResult } from '../lib/budget/reconcile';
 import type { Db, Tx } from './client';
 import { expenseLines, importBatches, reconciliationChecks, revenueLines } from './schema';
@@ -16,7 +16,14 @@ export interface ImportInput {
 }
 
 export type ImportOutcome =
-  | { imported: true; importId: number; lines: number; reconciliation: ReconciliationResult }
+  | {
+      imported: true;
+      importId: number;
+      lines: number;
+      reconciliation: ReconciliationResult;
+      /** The batch of the same file parsed by an older parser version, kept unchanged. */
+      previousImportId?: number;
+    }
   | { imported: false; reason: 'already_imported'; importId: number };
 
 const CHUNK = 500;
@@ -33,7 +40,7 @@ export async function importBudgetFile(db: Db | Tx, input: ImportInput): Promise
   const parsed = parseBudgetFile(input.data, input.format, input.layout);
   const reconciliation = reconcile(parsed);
 
-  // The duplicate check is the insert itself (ON CONFLICT on the sha256 key), inside the
+  // The duplicate check is the insert itself (ON CONFLICT on sha256 + parser version), inside the
   // transaction: a file stored by a concurrent import is reported as already imported
   // instead of failing on the unique key.
   const result = await db.transaction(async (tx) => {
@@ -44,21 +51,28 @@ export async function importBudgetFile(db: Db | Tx, input: ImportInput): Promise
         fiscalYear: input.fiscalYear,
         sourceFilename: input.filename,
         sourceSha256: sha256,
+        parserVersion: PARSER_VERSION,
         columnLayout: input.layout,
         status: 'reconciled',
         reconciliationStatus: reconciliation.status,
         reconciledAt: new Date(),
       })
-      .onConflictDoNothing({ target: importBatches.sourceSha256 })
+      .onConflictDoNothing({ target: [importBatches.sourceSha256, importBatches.parserVersion] })
       .returning({ id: importBatches.id });
     if (!batch) {
       const [existing] = await tx
         .select({ id: importBatches.id })
         .from(importBatches)
-        .where(eq(importBatches.sourceSha256, sha256));
-      return { existingId: existing!.id, importId: undefined };
+        .where(and(eq(importBatches.sourceSha256, sha256), eq(importBatches.parserVersion, PARSER_VERSION)));
+      return { existingId: existing!.id, importId: undefined, previousImportId: undefined };
     }
     const id = batch.id;
+    const [previous] = await tx
+      .select({ id: importBatches.id })
+      .from(importBatches)
+      .where(and(eq(importBatches.sourceSha256, sha256), lt(importBatches.parserVersion, PARSER_VERSION)))
+      .orderBy(desc(importBatches.parserVersion))
+      .limit(1);
 
     const common = (l: ParsedLine) => ({
       importId: id,
@@ -68,6 +82,7 @@ export async function importBudgetFile(db: Db | Tx, input: ImportInput): Promise
       paragraf: l.paragraf,
       functionalCode: l.functionalCode,
       name: l.name,
+      nameParts: l.nameParts,
       isSummary: l.isSummary,
       isLeaf: l.isLeaf,
     });
@@ -108,11 +123,17 @@ export async function importBudgetFile(db: Db | Tx, input: ImportInput): Promise
 
     const checks = reconciliation.checks.map((c) => ({ importId: id, ...c }));
     await insertChunks(checks, (chunk) => tx.insert(reconciliationChecks).values(chunk));
-    return { existingId: undefined, importId: id };
+    return { existingId: undefined, importId: id, previousImportId: previous?.id };
   });
 
   if (result.existingId !== undefined) {
     return { imported: false, reason: 'already_imported', importId: result.existingId };
   }
-  return { imported: true, importId: result.importId!, lines: parsed.lines.length, reconciliation };
+  return {
+    imported: true,
+    importId: result.importId!,
+    lines: parsed.lines.length,
+    reconciliation,
+    ...(result.previousImportId === undefined ? {} : { previousImportId: result.previousImportId }),
+  };
 }

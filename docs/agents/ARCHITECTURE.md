@@ -23,7 +23,7 @@ data/raw/*.xlsx ──► parseBudgetFile ──► reconcile ──► importBu
 | Parser | `src/lib/budget/parse.ts` | DATA.md §4.2 rules 1–7 → logical lines with blocks, codes, summary/leaf flags | SheetJS |
 | Reconciliation | `src/lib/budget/reconcile.ts` | total vs chapters, parent vs children, functional vs economic total; D-004 statuses; `canPublish` | — |
 | Schema | `src/db/schema.ts`, `drizzle/` | 7 tables and their constraints | PostgreSQL |
-| Import | `src/db/import.ts`, `scripts/import-raw.ts` | parse + reconcile + store in one transaction; a file already imported (same sha256, `ON CONFLICT DO NOTHING`) is reported as `already_imported` | PostgreSQL |
+| Import | `src/db/import.ts`, `scripts/import-raw.ts` | parse + reconcile + store in one transaction; a file already stored with the same sha256 and `PARSER_VERSION` is reported as `already_imported` (`ON CONFLICT DO NOTHING`); a newer parser version re-parses it into a new batch and keeps the old one (PATTERN-005) | PostgreSQL |
 | Repository docs & ledger | `docs/agents/` | rules, decisions, architecture | agent / developer |
 | Agentic workflows | `.claude/`, `.agents/` | planning and building automations | agent CLI / IDE |
 
@@ -39,9 +39,9 @@ data/raw/*.xlsx ──► parseBudgetFile ──► reconcile ──► importBu
 ## State and storage
 | What | Where | Owner | Notes |
 |---|---|---|---|
-| Imported files | `import_batches` | import | kind, year, filename, sha256 (unique), layout (jsonb), lifecycle status |
-| Expense lines | `expense_lines` | import | 3 blocks (functional, economic_summary, mixed); 9 BIGINT amounts in bani |
-| Revenue lines | `revenue_lines` | import | 8 BIGINT amounts in bani |
+| Imported files | `import_batches` | import | kind, year, filename, sha256 + `parser_version` (unique together), layout (jsonb), lifecycle status; at most one `published` batch per kind and year (partial unique index) |
+| Expense lines | `expense_lines` | import | 3 blocks (functional, economic_summary, mixed); 9 BIGINT amounts in bani; `name_parts` keeps the raw name fragments |
+| Revenue lines | `revenue_lines` | import | 8 BIGINT amounts in bani; `name_parts` keeps the raw name fragments |
 | Reconciliation checks | `reconciliation_checks` | import | one row per check and amount column |
 | Population and CPI | `locality_stats` | user (D-008) | empty until INS data is entered |
 | Taxonomy | `budget_categories`, `budget_taxonomy_mapping` | admin (D-009) | structure only; year-dependent, with notes |

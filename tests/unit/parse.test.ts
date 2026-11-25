@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EXPENSE_LAYOUT, REVENUE_LAYOUT } from '../../src/lib/budget/layout';
-import { BudgetParseError, parseBudgetFile, type ParsedLine } from '../../src/lib/budget/parse';
+import { BudgetParseError, PARSER_VERSION, parseBudgetFile, type ParsedLine } from '../../src/lib/budget/parse';
 import { EXPENSE_ROWS, EXPENSE_WIDTH, REVENUE_ROWS, REVENUE_WIDTH, csv, exp } from './helpers';
 
 const expense = () => parseBudgetFile(csv(EXPENSE_ROWS, EXPENSE_WIDTH), 'csv', EXPENSE_LAYOUT);
@@ -60,6 +60,16 @@ describe('parseBudgetFile — split names (rule 3)', () => {
     expect(sub.name).toBe('Autoritati executive si legislative');
     expect(sub.amounts.plati_efectuate).toBe(90000n);
     expect(expense().lines.some((l) => l.sourceRow === 6)).toBe(false);
+  });
+
+  it('keeps the raw name fragments exactly as they are in the file', () => {
+    const sub = byRow(expense().lines, 5);
+    expect(sub.nameParts).toEqual(['Autoritati executive si', '  legislative ']);
+    expect(byRow(expense().lines, 7).nameParts).toEqual(['Autoritati executive']);
+  });
+
+  it('exposes the parser version as a positive integer', () => {
+    expect(Number.isInteger(PARSER_VERSION) && PARSER_VERSION >= 2).toBe(true);
   });
 
   it('rejects a data file whose first row has no code', () => {

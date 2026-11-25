@@ -14,6 +14,13 @@ import {
 
 export type FileFormat = 'xlsx' | 'csv';
 
+/**
+ * Version of the parser's output. Any change to what the parser returns for the same
+ * file increases it (PATTERN-005), so `db:import` re-parses files stored by an older version.
+ * 1: first release. 2: lines carry the raw name fragments (`nameParts`).
+ */
+export const PARSER_VERSION = 2;
+
 /** functional: first block; economic_summary: from the 2nd `5002` to the first chapter; mixed: chapter × titlu detail. */
 export type Block = 'functional' | 'economic_summary' | 'mixed';
 
@@ -32,6 +39,8 @@ export interface ParsedLine {
   /** Dotted economic code, e.g. "20.01.09". */
   economicCode: string | null;
   name: string;
+  /** Raw name fragments exactly as in the file, before joining (DATA.md §4.2 rule 3, Q-007). */
+  nameParts: string[];
   /** Aggregating row (DATA.md §4.2 rule 2, plus the total rows): never summed. */
   isSummary: boolean;
   /** Non-summary line with no child line in its block. */
@@ -240,6 +249,7 @@ function resolveCodes(drafts: Draft[], kind: BudgetKind): ParsedLine[] {
       functionalCode: dotted(ctx.capitol, [ctx.subcapitol, ctx.paragraf]),
       economicCode: economic.length ? economic.join('.') : null,
       name: draft.nameParts.join(' ').replace(/\s+/g, ' ').trim().normalize('NFC'),
+      nameParts: [...draft.nameParts],
       isSummary,
       isLeaf: false,
       amounts: draft.amounts,

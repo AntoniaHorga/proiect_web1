@@ -4,7 +4,7 @@
 // transaction that is rolled back. Nothing is deleted and nothing is committed.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { sql, TransactionRollbackError } from 'drizzle-orm';
+import { and, eq, sql, TransactionRollbackError } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, type Tx } from '../../src/db/client';
@@ -18,6 +18,7 @@ import {
   localityStats,
 } from '../../src/db/schema';
 import { EXPENSE_LAYOUT, REVENUE_LAYOUT } from '../../src/lib/budget/layout';
+import { PARSER_VERSION } from '../../src/lib/budget/parse';
 import { canPublish } from '../../src/lib/budget/reconcile';
 
 loadEnv();
@@ -158,7 +159,28 @@ describe('publication gate (D-004)', () => {
     await inRollback(async (tx) => {
       await tx.insert(importBatches).values(batch({ status: 'published', reconciliationStatus: 'exact_match' }));
       await tx.insert(importBatches).values(
-        batch({ sourceSha256: 'b'.repeat(64), status: 'published', reconciliationStatus: 'rounded_match' }),
+        // Another year: only one published batch per kind and year is allowed.
+        batch({ sourceSha256: 'b'.repeat(64), fiscalYear: 2024, status: 'published', reconciliationStatus: 'rounded_match' }),
+      );
+    });
+  });
+
+  it('allows only one published batch per kind and fiscal year', async () => {
+    await inRollback(async (tx) => {
+      const published = { status: 'published', reconciliationStatus: 'exact_match' };
+      await tx.insert(importBatches).values(batch({ ...published, sourceSha256: '1'.repeat(64) }));
+      await expectRefused(
+        tx,
+        (sp) => sp.insert(importBatches).values(batch({ ...published, sourceSha256: '2'.repeat(64) })),
+        'import_batches_one_published_per_year_key',
+      );
+      // Allowed: a reconciled batch of the same year, and published batches of another year or kind.
+      await tx.insert(importBatches).values(
+        batch({ sourceSha256: '3'.repeat(64), status: 'reconciled', reconciliationStatus: 'exact_match' }),
+      );
+      await tx.insert(importBatches).values(batch({ ...published, sourceSha256: '4'.repeat(64), fiscalYear: 2024 }));
+      await tx.insert(importBatches).values(
+        batch({ ...published, sourceSha256: '5'.repeat(64), kind: 'revenue', columnLayout: REVENUE_LAYOUT }),
       );
     });
   });
@@ -238,11 +260,50 @@ describe('importBudgetFile', () => {
       // the row exists, so the import must report it instead of failing on the unique key.
       const [existing] = await tx
         .insert(importBatches)
-        .values(batch({ kind: 'revenue', sourceSha256: sha256, sourceFilename: 'venituri2022.xlsx' }))
+        .values(
+          batch({ kind: 'revenue', sourceSha256: sha256, sourceFilename: 'venituri2022.xlsx', parserVersion: PARSER_VERSION }),
+        )
         .returning({ id: importBatches.id });
       const input = { data, filename: 'venituri2022.xlsx', format: 'xlsx' as const, fiscalYear: 2022, layout: REVENUE_LAYOUT };
       const outcome = await importBudgetFile(tx, input);
       expect(outcome).toEqual({ imported: false, reason: 'already_imported', importId: existing!.id });
+    });
+  });
+
+  it('re-parses a file imported by an older parser version into a new batch, keeping the old one', async () => {
+    await inRollback(async (tx) => {
+      const data = readFileSync('data/raw/venituri2022.xlsx');
+      const sha256 = createHash('sha256').update(data).digest('hex');
+      const [old] = await tx
+        .insert(importBatches)
+        .values(batch({ kind: 'revenue', sourceSha256: sha256, sourceFilename: 'venituri2022.xlsx', parserVersion: 1 }))
+        .returning({ id: importBatches.id });
+      const input = { data, filename: 'venituri2022.xlsx', format: 'xlsx' as const, fiscalYear: 2022, layout: REVENUE_LAYOUT };
+
+      const outcome = await importBudgetFile(tx, input);
+      expect(outcome).toMatchObject({ imported: true, lines: 64, previousImportId: old!.id });
+
+      const batches = await tx
+        .select({ id: importBatches.id, parserVersion: importBatches.parserVersion })
+        .from(importBatches)
+        .where(eq(importBatches.sourceSha256, sha256))
+        .orderBy(importBatches.id);
+      expect(batches.map((b) => b.parserVersion)).toEqual([1, PARSER_VERSION]);
+    });
+  });
+
+  it('stores the raw name fragments', async () => {
+    await inRollback(async (tx) => {
+      const data = readFileSync('data/raw/cheltuieli2022.xlsx');
+      await importBudgetFile(tx, { data, filename: 'cheltuieli2022.xlsx', format: 'xlsx', fiscalYear: 2022, layout: EXPENSE_LAYOUT });
+      const [line] = await tx
+        .select({ name: expenseLines.name, nameParts: expenseLines.nameParts })
+        .from(expenseLines)
+        .where(and(eq(expenseLines.sourceRow, 8), eq(expenseLines.block, 'functional')));
+      expect(line).toEqual({
+        name: 'Servicii publice comunitare de evidenta a persoanelor',
+        nameParts: ['Servicii publice comunitare de', 'evidenta a persoanelor'],
+      });
     });
   });
 

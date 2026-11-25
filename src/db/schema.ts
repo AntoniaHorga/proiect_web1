@@ -16,6 +16,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import type { ColumnLayout } from '../lib/budget/layout';
 
@@ -37,6 +38,8 @@ export const importBatches = pgTable(
     fiscalYear: smallint('fiscal_year').notNull(),
     sourceFilename: text('source_filename').notNull(),
     sourceSha256: char('source_sha256', { length: 64 }).notNull(),
+    /** PARSER_VERSION that produced this batch's lines; a newer version re-parses into a new batch. */
+    parserVersion: smallint('parser_version').notNull().default(1),
     /** The column layout the file was parsed with (audit trail for the mapping assistant). */
     columnLayout: jsonb('column_layout').$type<ColumnLayout>().notNull(),
     status: text('status').notNull().default('uploaded'),
@@ -47,7 +50,11 @@ export const importBatches = pgTable(
     publishedAt: timestamp('published_at', { withTimezone: true }),
   },
   (t) => [
-    unique('import_batches_source_sha256_key').on(t.sourceSha256),
+    unique('import_batches_source_sha256_parser_version_key').on(t.sourceSha256, t.parserVersion),
+    // At most one published batch per kind and fiscal year: pages read exactly one source.
+    uniqueIndex('import_batches_one_published_per_year_key')
+      .on(t.kind, t.fiscalYear)
+      .where(sql`${t.status} = 'published'`),
     check('import_batches_kind_check', sql`${t.kind} IN ('expense', 'revenue')`),
     check('import_batches_status_check', sql`${t.status} IN ('uploaded', 'reconciled', 'published')`),
     check(
@@ -85,6 +92,8 @@ export const expenseLines = pgTable(
     functionalCode: text('functional_code'),
     economicCode: text('economic_code'),
     name: text('name').notNull(),
+    /** Raw name fragments as in the file (Q-007); empty for batches of parser version 1. */
+    nameParts: text('name_parts').array().notNull().default(sql`'{}'::text[]`),
     isSummary: boolean('is_summary').notNull(),
     isLeaf: boolean('is_leaf').notNull(),
     crediteAngajamentInitiale: money('credite_angajament_initiale'),
@@ -117,6 +126,8 @@ export const revenueLines = pgTable(
     paragraf: char('paragraf', { length: 2 }),
     functionalCode: text('functional_code'),
     name: text('name').notNull(),
+    /** Raw name fragments as in the file (Q-007); empty for batches of parser version 1. */
+    nameParts: text('name_parts').array().notNull().default(sql`'{}'::text[]`),
     isSummary: boolean('is_summary').notNull(),
     isLeaf: boolean('is_leaf').notNull(),
     prevederiInitiale: money('prevederi_initiale'),

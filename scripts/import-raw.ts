@@ -27,7 +27,8 @@ try {
         layout,
       });
       if (outcome.imported) {
-        console.log(`${filename}: ${outcome.lines} lines, ${outcome.reconciliation.status} (import ${outcome.importId})`);
+        const reparsed = outcome.previousImportId === undefined ? '' : `, re-parsed (previous import ${outcome.previousImportId} kept)`;
+        console.log(`${filename}: ${outcome.lines} lines, ${outcome.reconciliation.status} (import ${outcome.importId})${reparsed}`);
       } else {
         console.log(`${filename}: already imported (import ${outcome.importId}), skipped`);
       }

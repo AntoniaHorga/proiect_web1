@@ -10,6 +10,7 @@
 - PATTERN-002 · Zero raw hex in mock CSS — all values through CSS custom properties · candidate
 - PATTERN-003 · Database tests run in rolled-back transactions on a *_test database · candidate
 - PATTERN-004 · Public URLs are built from budget codes and year, never from database ids · candidate
+- PATTERN-005 · Any change to the parser's output increases PARSER_VERSION · candidate
 
 ---
 
@@ -45,4 +46,12 @@
 - **Example:** none yet (no routes); decided in the review of PR #1, 2026-11-25. All six imports have no duplicate code tuple per import and block (checked 2026-11-25).
 - **Why:** Stable, readable URLs that survive re-imports and that search engines and AI assistants can cite.
 - **Source:** user, review of PR #1 · confidence medium (no implementation yet)
+
+## PATTERN-005 · Any change to the parser's output increases PARSER_VERSION
+- **Status:** candidate
+- **Use when:** Changing `src/lib/budget/parse.ts` (or anything it calls) in a way that changes what it returns for the same file: lines, codes, names, flags, amounts.
+- **How:** Increase `PARSER_VERSION` in `src/lib/budget/parse.ts` and add one line to its comment saying what changed. `npm run db:import` then re-parses every file into a new batch (`parser_version` = new value) and keeps the old batch unchanged; switching the published batch is the publication route's job (Q-009). Refactors with identical output do not change the version.
+- **Example:** `PARSER_VERSION = 2` (raw name fragments, `nameParts`), commit for review findings 2–4 of PR #1.
+- **Why:** The import skips a file already stored with the same sha256 and parser version, so without the bump a parser fix would never reach the stored data.
+- **Source:** user, review of PR #1, 2026-11-25 · confidence medium (one implementation)
 
