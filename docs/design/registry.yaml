@@ -12,7 +12,7 @@ designs:
     kind: screen
     title: Explorator de Buget (Treemap & Adnotări)
     route: /explorator
-    status: approved
+    status: draft  # 2026-11-25: Q-006 changes the treemap to two views; mock update pending
     mock: docs/design/mocks/02-explorator.html
   - id: DS-003
     kind: screen

@@ -60,7 +60,7 @@ Pentru a elimina jargonul contabil și a asigura comparabilitatea între ani:
 * **Bază de Date & SQL:** PostgreSQL 16 (orchestrat în Docker Compose) accesat via `pg` (node-postgres) și Drizzle ORM.
   * Toate agregările și comparațiile an/an sunt calculate în SQL folosind `GROUP BY`, `CTE` și window functions (`LAG()`).
   * Toate valorile monetare sunt stocate în mod exact ca `BIGINT` (în bani — 1 leu = 100 bani) sau `NUMERIC(15, 2)`, fiind interzise tipurile `FLOAT`.
-* **Vizualizări:** Apache ECharts (`echarts-for-react`) cu Treemap pentru explorarea ierarhică (Capitol → Subcapitol → Titlu), grafice compuse (bare + linie) pentru evoluție și export direct PNG/SVG.
+* **Vizualizări:** Apache ECharts (`echarts-for-react`) cu Treemap pentru explorarea ierarhică în două vederi: funcțională (Domeniu → Capitol → Subcapitol → Paragraf) și economică (Capitol → Titlu → Articol), vezi Q-006, grafice compuse (bare + linie) pentru evoluție și export direct PNG/SVG.
 * **Parsare fișiere:** Server-side via `xlsx` (SheetJS) cu detectarea antetelor pe 2 rânduri, concatenarea rândurilor cu denumiri multi-line, excluderea rândurilor agregatoare superioare (`is_summary = true`) și tratarea valorilor negative legitime (stornări/recuperări).
 * **Testare:** Vitest (pentru parser, rotunjiri, reconciliere și mapare taxonomie) + Playwright (pentru fluxuri E2E de bază).
 
@@ -101,7 +101,7 @@ Pentru a elimina jargonul contabil și a asigura comparabilitatea între ani:
 | Nr. | Ecran | Rută | Scop & Componente Cheie |
 |---|---|---|---|
 | 1 | **Tablou de bord principal** | `/` | Hero cu întrebarea jurnalistei, card sinteză investiții (prevăzut vs. plătit, % execuție), 4 KPI-uri macro, grafic 7 domenii cetățenești, secțiune de alerte (+30% / +50% și investiții 0%). |
-| 2 | **Explorator de Buget** | `/explorator` | Treemap interactiv cu drill-down (Capitol → Subcapitol → Titlu), selector an (2022/2024/2025), comutator Funcționare/Investiții, export CSV, panou lateral de adnotări cu comentarii aprobate și formular adăugare. URL state complet. |
+| 2 | **Explorator de Buget** | `/explorator` | Treemap interactiv cu drill-down în două vederi (funcțională și economică, Q-006), selector an (2022/2024/2025), comutator Funcționare/Investiții, export CSV, panou lateral de adnotări cu comentarii aprobate și formular adăugare. URL state complet. |
 | 3 | **Căutare & Detalii** | `/cautare` | Modulul „Unde s-au dus banii pentru...”: căutare după cuvinte-cheie în denumirile indicatorilor și afișarea rezultatelor comparative pe toți anii. |
 | 4 | **Comparații An/An & Indicatori** | `/comparatii` | Comparație multi-anuală detaliată YoY via window functions (`LAG()`), calcul per capita (populație INS) și ajustare opțională la inflație (IPC). |
 | 5 | **Metodologie, Audit & Reconciliere** | `/audit` | Transparență completă: rapoarte de reconciliere pe ani, notele explicative ale Adminului, descărcare fișiere originale (XLSX/PDF) și dicționarul de mapare a taxonomiei. |

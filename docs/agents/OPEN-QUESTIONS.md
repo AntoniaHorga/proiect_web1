@@ -14,7 +14,7 @@
 - Q-003 · Cum sunt stocate fișierele originale încărcate pentru audit (Object storage vs. sistem de fișiere local)? · _answered_
 - Q-004 · Care este formatul și granularitatea exportului CSV din explorator?
 - Q-005 · Cum gestionăm eventualele encoding-uri non-UTF-8 sau denumiri fragmentate la importul de fișiere noi? · _answered_
-- Q-006 · Ce ierarhie folosește treemap-ul, dat fiind că datele nu încrucișează Subcapitol × Titlu? · _investigating_
+- Q-006 · Ce ierarhie folosește treemap-ul, dat fiind că datele nu încrucișează Subcapitol × Titlu? · _answered_
 
 ---
 
@@ -55,9 +55,10 @@
 - **Answer:** Doar UTF-8. Un fișier CSV care nu este UTF-8 valid este respins cu eroare; nu se ghicește encoding-ul. Denumirile fragmentate se tratează conform DATA.md §4.2 regula 3.
 
 ## Q-006 · Ce ierarhie folosește treemap-ul, dat fiind că datele nu încrucișează Subcapitol × Titlu?
-- **Status:** investigating
+- **Status:** answered
 - **Date:** 2026-11-25
 - **Blocks:** Ierarhia treemap-ului din DS-002 (`/explorator`) și comutatorul Funcționare/Investiții; SCOPE.md §3 și §6 („Capitol → Subcapitol → Titlu”).
 - **Who answers:** Utilizatorul.
 - **Evidence:** În cele 3 fișiere de cheltuieli, blocul funcțional are Capitol → Subcapitol → Paragraf fără titluri economice, iar blocul mixt are Capitol × Titlu/Articol/Alineat fără subcapitole (0 rânduri cu subcapitol sau paragraf în blocul mixt, verificat 2026-11-25).
 - **Proposed answer:** Două vederi separate: funcțională (Capitol → Subcapitol → Paragraf) și economică (Capitol → Titlu → Articol). Detalii în propunerea din sesiunea 2026-11-25.
+- **Answer:** Exploratorul are două vederi, salvate în URL (`?view=`): `functional` (Domeniu → Capitol → Subcapitol → Paragraf, blocul funcțional) și `economic` (Capitol → Titlu → Articol, blocul mixt). Comutatorul Funcționare/Investiții funcționează doar în vederea economică; în vederea funcțională e dezactivat, cu explicație text. Vederea economică afișează o notă: `70.02.05` nu poate fi separat de `70.02`. Actualizarea mock-ului DS-002 este un pas separat. Aprobat 2026-11-25.
