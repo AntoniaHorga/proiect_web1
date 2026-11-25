@@ -1,4 +1,46 @@
 # docs/design/registry.yaml — every screen and shared component, by DS- ID.
 # Plans, commits, mocks and board files use the ID (tickets don't). kind: foundation | component | screen
 # status: draft (mock drawn) | approved (confirmed on the board) | implemented | deprecated (never delete an entry)
-designs: []
+designs:
+  - id: DS-001
+    kind: screen
+    title: Tablou de Bord Principal (Hero & Sinteza Investiții)
+    route: /
+    status: approved
+    mock: docs/design/mocks/01-dashboard.html
+  - id: DS-002
+    kind: screen
+    title: Explorator de Buget (Treemap & Adnotări)
+    route: /explorator
+    status: approved
+    mock: docs/design/mocks/02-explorator.html
+  - id: DS-003
+    kind: screen
+    title: Căutare Bugetară („Unde s-au dus banii?”)
+    route: /cautare
+    status: approved
+    mock: docs/design/mocks/03-cautare.html
+  - id: DS-004
+    kind: screen
+    title: Comparații An/An & Indicatori Per Capita (YoY LAG & IPC)
+    route: /comparatii
+    status: approved
+    mock: docs/design/mocks/04-comparatii.html
+  - id: DS-005
+    kind: screen
+    title: Metodologie, Audit & Reconciliere (Toleranță ±1 leu & Date Deschise)
+    route: /audit
+    status: approved
+    mock: docs/design/mocks/05-audit.html
+  - id: DS-006
+    kind: screen
+    title: Autentificare & Înregistrare Cetățean / Jurnalist
+    route: /login
+    status: approved
+    mock: docs/design/mocks/06-auth.html
+  - id: DS-007
+    kind: screen
+    title: Panou de Administrare, Reconciliere & Moderare
+    route: /admin
+    status: approved
+    mock: docs/design/mocks/07-admin.html
