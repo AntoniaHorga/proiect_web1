@@ -18,7 +18,7 @@
 - Q-007 · Cum lipim fragmentele de denumire care se termină cu cratimă?
 - Q-008 · Ce limite aplică parserul fișierelor încărcate prin upload?
 - Q-009 · Ce trebuie să garanteze ruta de publicare a unui import?
-- Q-010 · Care sunt sursa exactă (URL) și licența datelor bugetare?
+- Q-010 · Care sunt sursa exactă (URL) și licența datelor bugetare? · _answered_
 
 ---
 
@@ -91,9 +91,9 @@
 - **Required in the publication route:** ruta nu acceptă niciodată `reconciliation_status` de la client; îl scrie doar importul. Variantă de discutat în plan: un trigger care refuză modificarea `reconciliation_status` după ce `reconciled_at` este setat.
 
 ## Q-010 · Care sunt sursa exactă (URL) și licența datelor bugetare?
-- **Status:** open
+- **Status:** answered
 - **Date:** 2026-11-25
 - **Blocks:** Citarea sursei și licenței pe paginile publice și în datele structurate (schema.org `Dataset`: `url`/`isBasedOn`, `license`); constatarea 6 din review-ul PR #1.
 - **Who answers:** Utilizatorul (le completează în DATA.md §1).
 - **Evidence:** DATA.md §1 numește site-ul Primăriei Șura Mare, dar fără URL-ul documentelor și fără licență. Nici `docs/brief.md`, nici `docs/SCOPE.md` nu numesc o licență. `import_batches` păstrează doar `source_filename`.
-
+- **Answer:** Completate de utilizator în DATA.md §1 (URL-ul secțiunii de documente financiare, data colectării și situația licenței), 2026-11-25.
