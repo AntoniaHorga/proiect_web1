@@ -11,7 +11,7 @@
 ## Index
 - Q-001 · What technology stack, frameworks, and requirements apply to this project? · _answered_
 - Q-002 · Care sunt valorile oficiale INS (populație și IPC) pentru Comuna Șura Mare pe anii 2022, 2024, 2025?
-- Q-003 · Cum sunt stocate fișierele originale încărcate pentru audit (Object storage vs. sistem de fișiere local)?
+- Q-003 · Cum sunt stocate fișierele originale încărcate pentru audit (Object storage vs. sistem de fișiere local)? · _answered_
 - Q-004 · Care este formatul și granularitatea exportului CSV din explorator?
 - Q-005 · Cum gestionăm eventualele encoding-uri non-UTF-8 sau denumiri fragmentate la importul de fișiere noi?
 
@@ -31,10 +31,12 @@
 - **Proposed answer:** Preluarea populației după domiciliu/rezidență din INS Tempo Online pentru Comuna Șura Mare și a indicelui prețurilor de consum (IPC) pentru 2022, 2024, 2025; inițial seed-uit cu valori estimative și configurabil din interfața de administrare prin tabelul `locality_stats`.
 
 ## Q-003 · Cum sunt stocate fișierele originale încărcate pentru audit (Object storage vs. sistem de fișiere local)?
-- **Status:** open
+- **Status:** answered
+- **Date:** 2026-11-19
 - **Blocks:** Configurarea stocării pentru fișierele originale încărcate de administrator.
 - **Who answers:** Arhitectura aplicației / Dezvoltator.
 - **Proposed answer:** În mediul local / Docker, stocăm fișierele originale într-un volum dedicat pe disc (`uploads/original_files/`), expus securizat prin ruta `/audit` pentru descărcare, cu o abstractizare de interfață `FileStorageService` ce permite trecerea la un bucket compatibil S3 (MinIO, AWS S3) în producție.
+- **Answer:** Volum local persistent în Docker (`uploads/original_files/`), servit prin `/audit`, accesat prin interfața `FileStorageService`. Înregistrat ca decizia D-005.
 
 ## Q-004 · Care este formatul și granularitatea exportului CSV din explorator?
 - **Status:** open

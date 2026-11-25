@@ -13,6 +13,7 @@
 - D-004 · Reconciliation tolerance and publication gate
 - D-005 · Local containerized storage with abstracted interface for audit files
 - D-006 · Session-based authentication via HTTP-only cookies and bcrypt password hashing
+- D-007 · Monetary amounts stored as BIGINT in bani
 
 ---
 
@@ -70,3 +71,13 @@
 - **Rejected:** Third-party OAuth providers (Google, GitHub) or insecure localStorage-based JWT storage.
 - **Evidence:** docs/SCOPE.md#L55-L65, docs/brief.md#L21
 - **Source:** user · confidence high
+
+## D-007 · Monetary amounts stored as BIGINT in bani
+- **Status:** approved
+- **Date:** 2026-11-25
+- **Rule:** Every monetary amount is stored in PostgreSQL as `BIGINT` in bani (1 leu = 100 bani) and handled in TypeScript as `bigint` (or an integer value in bani that is never a fraction). Converting to lei happens only for display. `NUMERIC(15, 2)` is not used. This narrows D-003, which still applies (no floating-point types).
+- **Why:** One exact representation for the schema, the parser and reconciliation. The source files hold whole lei, so the import is an integer multiplication by 100, and the ±1.00 RON tolerance in D-004 becomes an integer comparison (≤ 100 bani).
+- **Rejected:** `NUMERIC(15, 2)` (returned as strings by `pg`, which requires decimal parsing in JavaScript).
+- **Evidence:** user choice in session 2026-11-25; data/raw/*.xlsx contain only whole-lei integer values
+- **Source:** user · confidence high
+- **Confirmed:** 2026-11-25
