@@ -48,6 +48,121 @@ data/raw/*.xlsx ──► parseBudgetFile ──► reconcile ──► importBu
 | Database data | Docker volume `pgdata` | Docker | `budget` (dev) and `budget_test` (integration tests) |
 | Knowledge ledger | `docs/agents/` | Git | maintained via `ledger-lint.py` |
 
+### Entity relationships
+Generated from `src/db/schema.ts` (migrations `drizzle/0000`–`0002`). Money columns are
+`BIGINT` in bani (D-007). `expense_lines` and `revenue_lines` have no foreign key to the
+taxonomy tables: lines are matched to `budget_taxonomy_mapping` by code prefix and year
+at query time (D-009). `locality_stats` is joined by year, with no foreign key.
+
+```mermaid
+erDiagram
+    import_batches ||--o{ expense_lines : "import_id (on delete cascade)"
+    import_batches ||--o{ revenue_lines : "import_id (on delete cascade)"
+    import_batches ||--o{ reconciliation_checks : "import_id (on delete cascade)"
+    budget_categories ||--o{ budget_taxonomy_mapping : "(category_id, axis)"
+
+    import_batches {
+        serial id PK
+        text kind "expense | revenue"
+        smallint fiscal_year "one published batch per kind and year"
+        text source_filename
+        char source_sha256 UK "unique with parser_version"
+        smallint parser_version UK "PATTERN-005"
+        jsonb column_layout
+        text status "uploaded | reconciled | published"
+        text reconciliation_status "exact_match | rounded_match | discrepancy_detected"
+        text justification "D-004 publication gate"
+        timestamptz created_at
+        timestamptz reconciled_at
+        timestamptz published_at
+    }
+    expense_lines {
+        serial id PK
+        integer import_id FK
+        integer source_row
+        text block "functional | economic_summary | mixed"
+        char capitol
+        char subcapitol
+        char paragraf
+        char titlu
+        char articol
+        char alineat
+        text functional_code
+        text economic_code
+        text name
+        text_array name_parts
+        boolean is_summary
+        boolean is_leaf
+        bigint credite_angajament_initiale
+        bigint credite_angajament_definitive
+        bigint credite_bugetare_initiale
+        bigint credite_bugetare_definitive
+        bigint angajamente_bugetare
+        bigint angajamente_legale
+        bigint plati_efectuate
+        bigint angajamente_legale_de_platit
+        bigint cheltuieli_efective
+    }
+    revenue_lines {
+        serial id PK
+        integer import_id FK
+        integer source_row
+        char capitol
+        char subcapitol
+        char paragraf
+        text functional_code
+        text name
+        text_array name_parts
+        boolean is_summary
+        boolean is_leaf
+        bigint prevederi_initiale
+        bigint prevederi_definitive
+        bigint drepturi_total
+        bigint drepturi_ani_precedenti
+        bigint drepturi_an_curent
+        bigint incasari_realizate
+        bigint stingeri_alte_cai
+        bigint drepturi_contestate
+    }
+    reconciliation_checks {
+        serial id PK
+        integer import_id FK
+        text check_kind "total_vs_chapters | parent_vs_children | functional_vs_mixed_total"
+        text block
+        text code
+        integer source_row
+        text amount_column
+        bigint reported_bani
+        bigint computed_bani
+        bigint difference_bani
+        text status
+    }
+    locality_stats {
+        smallint year PK
+        integer population "D-008, no seed"
+        text population_source
+        numeric cpi_index
+        text cpi_source
+        timestamptz updated_at
+    }
+    budget_categories {
+        serial id PK
+        text axis UK "section | domain | revenue_source"
+        text key UK
+        text label
+    }
+    budget_taxonomy_mapping {
+        serial id PK
+        text axis FK
+        text code_prefix UK "e.g. 70.02.05"
+        integer category_id FK
+        smallint valid_from_year UK "NULL = open-ended"
+        smallint valid_to_year
+        text note "explanation shown to the user"
+        timestamptz updated_at
+    }
+```
+
 ## Configuration
 | Name | Where set | Used by | Notes |
 |---|---|---|---|
