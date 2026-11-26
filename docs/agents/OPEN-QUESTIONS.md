@@ -15,6 +15,10 @@
 - Q-004 · Care este formatul și granularitatea exportului CSV din explorator?
 - Q-005 · Cum gestionăm eventualele encoding-uri non-UTF-8 sau denumiri fragmentate la importul de fișiere noi? · _answered_
 - Q-006 · Ce ierarhie folosește treemap-ul, dat fiind că datele nu încrucișează Subcapitol × Titlu? · _answered_
+- Q-007 · Cum lipim fragmentele de denumire care se termină cu cratimă?
+- Q-008 · Ce limite aplică parserul fișierelor încărcate prin upload?
+- Q-009 · Ce trebuie să garanteze ruta de publicare a unui import?
+- Q-010 · Care sunt sursa exactă (URL) și licența datelor bugetare? · _answered_
 
 ---
 
@@ -62,3 +66,34 @@
 - **Evidence:** În cele 3 fișiere de cheltuieli, blocul funcțional are Capitol → Subcapitol → Paragraf fără titluri economice, iar blocul mixt are Capitol × Titlu/Articol/Alineat fără subcapitole (0 rânduri cu subcapitol sau paragraf în blocul mixt, verificat 2026-11-25).
 - **Proposed answer:** Două vederi separate: funcțională (Capitol → Subcapitol → Paragraf) și economică (Capitol → Titlu → Articol). Detalii în propunerea din sesiunea 2026-11-25.
 - **Answer:** Exploratorul are două vederi, salvate în URL (`?view=`): `functional` (Domeniu → Capitol → Subcapitol → Paragraf, blocul funcțional) și `economic` (Capitol → Titlu → Articol, blocul mixt). Comutatorul Funcționare/Investiții funcționează doar în vederea economică; în vederea funcțională e dezactivat, cu explicație text. Vederea economică afișează o notă: `70.02.05` nu poate fi separat de `70.02`. Actualizarea mock-ului DS-002 este un pas separat. Aprobat 2026-11-25.
+
+## Q-007 · Cum lipim fragmentele de denumire care se termină cu cratimă?
+- **Status:** open
+- **Date:** 2026-11-25
+- **Blocks:** Afișarea corectă a denumirilor lungi (căutare DS-003, explorator DS-002). Nu afectează sumele sau reconcilierea.
+- **Who answers:** Utilizatorul.
+- **Evidence:** Regula 3 (DATA.md §4.2) lipește fragmentele cu un spațiu. Rezultă `cheltuie- lilor`, `dezvol- tare`, `intercomuni- tare` (cuvinte despărțite la capăt de rând), dar și `administrativ- teritoriale` (cratimă reală). O regulă automată nu le poate deosebi pe toate fără un dicționar.
+
+## Q-008 · Ce limite aplică parserul fișierelor încărcate prin upload?
+- **Status:** open
+- **Date:** 2026-11-25
+- **Blocks:** Planul de upload din panoul de administrare (DS-007). **Cerință obligatorie pentru acel plan**, amânată din review-ul PR #1 (constatarea 1).
+- **Who answers:** Utilizatorul (valorile limitelor).
+- **Evidence:** `src/lib/budget/parse.ts:100,106`: `XLSX.read` fără limite și `sheet_to_json` cu `blankrows`/`defval` construiesc matricea după intervalul declarat (`!ref`), nu după celulele reale. Un XLSX de 15,8 KB cu `!ref A1:CV200000` a cerut 22 s și 356 MB (măsurat în review). `XLSX.read` acceptă și alte formate (HTML, SYLK) când se așteaptă XLSX. `markLeaves` (`parse.ts:277`) și `directChildren`/`topLevel` (`reconcile.ts:51,57`) sunt O(n²).
+- **Required in the upload plan:** limită de mărime a fișierului; limitarea intervalului citit (`sheetRows` și verificarea `decode_range` față de un maxim de rânduri și coloane); citirea doar a coloanelor folosite de layout; un maxim de linii înainte de reconciliere; verificarea semnăturii ZIP (`PK\x03\x04`) pentru XLSX. Valorile exacte le stabilește utilizatorul.
+
+## Q-009 · Ce trebuie să garanteze ruta de publicare a unui import?
+- **Status:** open
+- **Date:** 2026-11-25
+- **Blocks:** Ruta de publicare din panoul de administrare (DS-007). **Cerință obligatorie pentru acea rută**, amânată din review-ul PR #1 (constatarea 7).
+- **Who answers:** Utilizatorul.
+- **Evidence:** `import_batches_publication_gate_check` (`src/db/schema.ts`) se bazează pe `reconciliation_status`, o coloană care poate fi scrisă oricând: un `UPDATE ... SET status='published', reconciliation_status='exact_match'` trece de poartă.
+- **Required in the publication route:** ruta nu acceptă niciodată `reconciliation_status` de la client; îl scrie doar importul. Variantă de discutat în plan: un trigger care refuză modificarea `reconciliation_status` după ce `reconciled_at` este setat.
+
+## Q-010 · Care sunt sursa exactă (URL) și licența datelor bugetare?
+- **Status:** answered
+- **Date:** 2026-11-25
+- **Blocks:** Citarea sursei și licenței pe paginile publice și în datele structurate (schema.org `Dataset`: `url`/`isBasedOn`, `license`); constatarea 6 din review-ul PR #1.
+- **Who answers:** Utilizatorul (le completează în DATA.md §1).
+- **Evidence:** DATA.md §1 numește site-ul Primăriei Șura Mare, dar fără URL-ul documentelor și fără licență. Nici `docs/brief.md`, nici `docs/SCOPE.md` nu numesc o licență. `import_batches` păstrează doar `source_filename`.
+- **Answer:** Completate de utilizator în DATA.md §1 (URL-ul secțiunii de documente financiare, data colectării și situația licenței), 2026-11-25.

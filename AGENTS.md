@@ -79,20 +79,34 @@ without new evidence. A rejected proposal is added there with the reason.
 ## 1. What this repo is
 Web application project for university coursework (3rd Year, Semester 1 Web Development).
 Developed and run locally by the student.
-Target stack and application domain to be determined based on project requirements (see `docs/agents/OPEN-QUESTIONS.md#Q-001`).
+Domain: P09, local budget explorer for Comuna Șura Mare (2022, 2024, 2025); see `docs/SCOPE.md` and `DATA.md`.
 
 ## 2. Stack and commands
-Web application stack (TBD: HTML/CSS/JS or full-stack framework).
+Node.js + TypeScript, PostgreSQL 16 in Docker via `pg` + Drizzle ORM, SheetJS (`xlsx`,
+pinned CDN tarball) for parsing, Vitest for tests (D-002, D-007). Next.js, Tailwind and
+ECharts are not installed yet (next plan). Copy `.env.example` to `.env` first.
 
 ```bash
-# To be defined once project stack is chosen (tracked in Q-001)
-# Build: TBD
-# Run: TBD
-# Test: TBD
-# Lint / Type-check: TBD
+npm ci                 # install
+npm run typecheck      # tsc --noEmit
+npm test               # unit tests (parser, reconciliation, the six files in data/raw)
+npm run db:up          # start PostgreSQL 16 (docker compose), creates budget + budget_test
+npm run db:generate    # generate a migration from src/db/schema.ts into drizzle/
+npm run db:migrate     # apply migrations to DATABASE_URL
+npm run db:import      # import data/raw/*.xlsx (status reconciled, never published)
+npm run test:db        # integration tests on TEST_DATABASE_URL (*_test only, each test rolls back)
+python3 docs/agents/tools/ledger-lint.py   # ledger lint
 ```
+CI (`.github/workflows/ci.yml`) runs typecheck, unit tests, integration tests and the
+ledger lint on every push and pull request.
 
 ## 3. Layout
+- `src/lib/` — pure logic: `money.ts` (bani), `budget/` (layout, parser, reconciliation)
+- `src/db/` — Drizzle schema, client, file import
+- `drizzle/` — generated SQL migrations (never edited by hand)
+- `scripts/` — command-line entry points (`import-raw.ts`)
+- `tests/unit/`, `tests/integration/` — Vitest suites
+- `data/raw/` — official source files (XLSX, original PDFs)
 - `.claude/` — agent skills (`plan`, `build`) and agent definitions (`planner`, `builder`)
 - `.agents/` — Antigravity configuration and skill registration
 - `docs/agents/` — knowledge ledger: decisions, patterns, contracts, open questions, architecture, guide
@@ -111,6 +125,6 @@ Web application stack (TBD: HTML/CSS/JS or full-stack framework).
 
 ## 6. Definition of done
 - Code implements the approved plan without unrequested additions.
-- Automated tests pass (once test framework is configured).
+- `npm run typecheck`, `npm test` and `npm run test:db` pass.
 - For UI: responsive, adheres to `docs/design/DESIGN.md` guardrails.
 - New practices recorded as candidate patterns; open points recorded as Q- entries.

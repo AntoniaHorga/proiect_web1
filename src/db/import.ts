@@ -1,0 +1,139 @@
+// Imports one budget file: parse, reconcile, store. Never publishes (status `reconciled`).
+import { createHash } from 'node:crypto';
+import { and, desc, eq, lt } from 'drizzle-orm';
+import type { ColumnLayout } from '../lib/budget/layout';
+import { PARSER_VERSION, parseBudgetFile, type FileFormat, type ParsedLine } from '../lib/budget/parse';
+import { reconcile, type ReconciliationResult } from '../lib/budget/reconcile';
+import type { Db, Tx } from './client';
+import { expenseLines, importBatches, reconciliationChecks, revenueLines } from './schema';
+
+export interface ImportInput {
+  data: Uint8Array;
+  filename: string;
+  format: FileFormat;
+  fiscalYear: number;
+  layout: ColumnLayout;
+}
+
+export type ImportOutcome =
+  | {
+      imported: true;
+      importId: number;
+      lines: number;
+      reconciliation: ReconciliationResult;
+      /** The batch of the same file parsed by an older parser version, kept unchanged. */
+      previousImportId?: number;
+    }
+  | { imported: false; reason: 'already_imported'; importId: number };
+
+const CHUNK = 500;
+
+async function insertChunks<T>(rows: T[], insert: (chunk: T[]) => Promise<unknown>): Promise<void> {
+  for (let i = 0; i < rows.length; i += CHUNK) await insert(rows.slice(i, i + CHUNK));
+}
+
+const a = (line: ParsedLine, field: keyof ParsedLine['amounts']) => line.amounts[field] ?? 0n;
+
+/** `db` may be a transaction: the import then runs in a savepoint (used by the integration tests). */
+export async function importBudgetFile(db: Db | Tx, input: ImportInput): Promise<ImportOutcome> {
+  const sha256 = createHash('sha256').update(input.data).digest('hex');
+  const parsed = parseBudgetFile(input.data, input.format, input.layout);
+  const reconciliation = reconcile(parsed);
+
+  // The duplicate check is the insert itself (ON CONFLICT on sha256 + parser version), inside the
+  // transaction: a file stored by a concurrent import is reported as already imported
+  // instead of failing on the unique key.
+  const result = await db.transaction(async (tx) => {
+    const [batch] = await tx
+      .insert(importBatches)
+      .values({
+        kind: parsed.kind,
+        fiscalYear: input.fiscalYear,
+        sourceFilename: input.filename,
+        sourceSha256: sha256,
+        parserVersion: PARSER_VERSION,
+        columnLayout: input.layout,
+        status: 'reconciled',
+        reconciliationStatus: reconciliation.status,
+        reconciledAt: new Date(),
+      })
+      .onConflictDoNothing({ target: [importBatches.sourceSha256, importBatches.parserVersion] })
+      .returning({ id: importBatches.id });
+    if (!batch) {
+      const [existing] = await tx
+        .select({ id: importBatches.id })
+        .from(importBatches)
+        .where(and(eq(importBatches.sourceSha256, sha256), eq(importBatches.parserVersion, PARSER_VERSION)));
+      return { existingId: existing!.id, importId: undefined, previousImportId: undefined };
+    }
+    const id = batch.id;
+    const [previous] = await tx
+      .select({ id: importBatches.id })
+      .from(importBatches)
+      .where(and(eq(importBatches.sourceSha256, sha256), lt(importBatches.parserVersion, PARSER_VERSION)))
+      .orderBy(desc(importBatches.parserVersion))
+      .limit(1);
+
+    const common = (l: ParsedLine) => ({
+      importId: id,
+      sourceRow: l.sourceRow,
+      capitol: l.capitol,
+      subcapitol: l.subcapitol,
+      paragraf: l.paragraf,
+      functionalCode: l.functionalCode,
+      name: l.name,
+      nameParts: l.nameParts,
+      isSummary: l.isSummary,
+      isLeaf: l.isLeaf,
+    });
+
+    if (parsed.kind === 'expense') {
+      const rows = parsed.lines.map((l) => ({
+        ...common(l),
+        block: l.block,
+        titlu: l.titlu,
+        articol: l.articol,
+        alineat: l.alineat,
+        economicCode: l.economicCode,
+        crediteAngajamentInitiale: a(l, 'credite_angajament_initiale'),
+        crediteAngajamentDefinitive: a(l, 'credite_angajament_definitive'),
+        crediteBugetareInitiale: a(l, 'credite_bugetare_initiale'),
+        crediteBugetareDefinitive: a(l, 'credite_bugetare_definitive'),
+        angajamenteBugetare: a(l, 'angajamente_bugetare'),
+        angajamenteLegale: a(l, 'angajamente_legale'),
+        platiEfectuate: a(l, 'plati_efectuate'),
+        angajamenteLegaleDePlatit: a(l, 'angajamente_legale_de_platit'),
+        cheltuieliEfective: a(l, 'cheltuieli_efective'),
+      }));
+      await insertChunks(rows, (chunk) => tx.insert(expenseLines).values(chunk));
+    } else {
+      const rows = parsed.lines.map((l) => ({
+        ...common(l),
+        prevederiInitiale: a(l, 'prevederi_initiale'),
+        prevederiDefinitive: a(l, 'prevederi_definitive'),
+        drepturiTotal: a(l, 'drepturi_total'),
+        drepturiAniPrecedenti: a(l, 'drepturi_ani_precedenti'),
+        drepturiAnCurent: a(l, 'drepturi_an_curent'),
+        incasariRealizate: a(l, 'incasari_realizate'),
+        stingeriAlteCai: a(l, 'stingeri_alte_cai'),
+        drepturiContestate: a(l, 'drepturi_contestate'),
+      }));
+      await insertChunks(rows, (chunk) => tx.insert(revenueLines).values(chunk));
+    }
+
+    const checks = reconciliation.checks.map((c) => ({ importId: id, ...c }));
+    await insertChunks(checks, (chunk) => tx.insert(reconciliationChecks).values(chunk));
+    return { existingId: undefined, importId: id, previousImportId: previous?.id };
+  });
+
+  if (result.existingId !== undefined) {
+    return { imported: false, reason: 'already_imported', importId: result.existingId };
+  }
+  return {
+    imported: true,
+    importId: result.importId!,
+    lines: parsed.lines.length,
+    reconciliation,
+    ...(result.previousImportId === undefined ? {} : { previousImportId: result.previousImportId }),
+  };
+}
