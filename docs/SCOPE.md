@@ -36,9 +36,10 @@ Pentru a elimina jargonul contabil și a asigura comparabilitatea între ani:
   7. *Agricultură și Alte Acțiuni Economice:* Capitolele 83.02 și 87.02.
 * **Gruparea Veniturilor (3 Surse majore):**
   * *Taxe și venituri proprii locale:* Capitolele 03.02–18.02, 30.02–36.02.
-  * *Sume de la bugetul de stat:* Capitolele 11.02, 42.02, 43.02.
-  * *Fonduri Europene:* Capitolele 45.02, 48.02.
+  * *Sume de la bugetul de stat:* Capitolele 11.02, 42.02, 43.02, cu excepția sumelor PNRR de mai jos.
+  * *Fonduri Europene:* Capitolele 45.02, 48.02, plus sumele PNRR `42.02.88`, `42.02.89` și `43.02.49` (prefixul cel mai lung câștigă, D-009). Notă vizibilă pentru utilizator: „Banii PNRR vin de la Uniunea Europeană prin bugetul de stat”.
 * **Compromisuri și diferențe an/an:** Apariția noilor titluri pentru fonduri externe și PNRR (56, 58, 60, 61) în 2024–2025 (inexistente în structura din 2022); cheltuielile de capital sunt agregate la nivel de subcapitol (nu există identificator unic de proiect de investiții în fișiere decât în textul denumirii indicatorului).
+* **Capitole mutate între ani (cazuri reale, verificate 2026-11-26):** FEADR raportat în 2024 sub `48.02.04` (cadrul 2014–2020) apare în 2025 și sub `45.02.53` (cadrul 2023–2027); PNRR raportat în 2024 sub `42.02.88` apare în 2025 și sub `43.02.49`. Ambele rămân comparabile an/an prin maparea pe „Fonduri Europene”, cu nota „în 2025, X este raportat și sub Y”. Sunt cazurile pentru testele de mapare cerute de fișa P09 („comparația an/an funcționează inclusiv pentru capitole redenumite”).
 * **Persistență:** Maparea este gestionată în tabelul PostgreSQL `budget_taxonomy_mapping`, populată la seed și editabilă din panoul de administrare, cu fallback automat „Necategorisit”.
 
 ### 2.3. Variabila 3 — Răspunsul la Întrebarea Jurnalistei pe Pagina Principală
@@ -47,19 +48,19 @@ Pentru a elimina jargonul contabil și a asigura comparabilitatea între ani:
 * **Implementare vizuală în Hero (`/`):**
   * Răspuns vizual sintetizat în sub 30 de secunde.
   * Card / grafic de sinteză: Comparație multi-anuală (2022, 2024, 2025) a sumelor prevăzute (credite definitive) vs. plăților efectuate (în lei și rata de realizare %), plus raportul procentual Funcționare vs. Investiții.
-  * 4 KPI-uri macro pentru anul selectat (implicit 2025): Buget total aprobat, Încasări efective (pe cele 3 surse), Cheltuieli efective, Sold/Disponibil rămas.
+  * 4 KPI-uri macro pentru anul selectat (implicit 2025): Buget total aprobat, Încasări efective (pe cele 3 surse), Cheltuieli efective, „Sold (încasări − plăți)” (D-011).
   * Grafic de pondere și evoluție pe cele 7 domenii cetățenești.
-  * Modul de semnale automate: Alerte pentru variații an/an de peste +30% (atenție) și +50% (majoră), cu procent și diferență în lei, plus lista proiectelor/capitolelor cu grad de execuție 0% sau <10%.
+  * Modul de semnale automate (D-010): la nivel de subcapitol, pe plățile efectuate. Variații an/an de peste +30% (atenție) și +50% (majoră), cu procent și diferență în lei; 2024 se compară cu 2022, cu eticheta „față de 2022”. Plus lista subcapitolelor cu grad de execuție 0% sau <10%.
 
 ---
 
 ## 3. Stiva Tehnologică și Constrângeri Tehnice
 
 * **Runtime & Framework:** Node.js + TypeScript cu Next.js (App Router, Server Actions și Route Handlers).
-* **Frontend & Design:** React, Tailwind CSS configurat strict cu tokenii din `docs/design/DESIGN.md`, suport complet Light/Dark mode, stare a filtrelor sincronizată în URL (`searchParams`).
+* **Frontend & Design:** React, Tailwind CSS configurat strict cu tokenii din `docs/design/DESIGN.md`, suport complet Light/Dark mode, stare a filtrelor sincronizată în URL (`searchParams`), inclusiv modul de afișare „Cetățean / Analitic”, care este doar o preferință de afișare, fără legătură cu rolurile (D-012).
 * **Bază de Date & SQL:** PostgreSQL 16 (orchestrat în Docker Compose) accesat via `pg` (node-postgres) și Drizzle ORM.
   * Toate agregările și comparațiile an/an sunt calculate în SQL folosind `GROUP BY`, `CTE` și window functions (`LAG()`).
-  * Toate valorile monetare sunt stocate în mod exact ca `BIGINT` (în bani — 1 leu = 100 bani) sau `NUMERIC(15, 2)`, fiind interzise tipurile `FLOAT`.
+  * Toate valorile monetare sunt stocate în mod exact ca `BIGINT` (în bani — 1 leu = 100 bani, D-007), fiind interzise tipurile `FLOAT`.
 * **Vizualizări:** Apache ECharts (`echarts-for-react`) cu Treemap pentru explorarea ierarhică în două vederi: funcțională (Domeniu → Capitol → Subcapitol → Paragraf) și economică (Capitol → Titlu → Articol), vezi Q-006, grafice compuse (bare + linie) pentru evoluție și export direct PNG/SVG.
 * **Parsare fișiere:** Server-side via `xlsx` (SheetJS) cu detectarea antetelor pe 2 rânduri, concatenarea rândurilor cu denumiri multi-line, excluderea rândurilor agregatoare superioare (`is_summary = true`) și tratarea valorilor negative legitime (stornări/recuperări).
 * **Testare:** Vitest (pentru parser, rotunjiri, reconciliere și mapare taxonomie) + Playwright (pentru fluxuri E2E de bază).
@@ -77,6 +78,7 @@ Pentru a elimina jargonul contabil și a asigura comparabilitatea între ani:
    * Adnotările intră inițial în starea `pending` (în așteptare).
 3. **Admin:**
    * Cont inițial generat la seed din variabile de mediu (`ADMIN_EMAIL`, `ADMIN_PASSWORD`).
+   * Resetează parolele utilizatorilor din panou; nu există „Ai uitat parola?” (D-013).
    * Acces la panoul protejat `/admin`: încărcare fișiere noi XLSX/CSV, rulare asistent reconciliere, aprobare importuri cu justificare textuală obligatorie, moderare adnotări (`approved` / `rejected`), configurare taxonomie și indicatori locali (`locality_stats`).
 
 ---
@@ -116,9 +118,11 @@ Pentru a elimina jargonul contabil și a asigura comparabilitatea între ani:
 2. **Estimarea/interpolarea datelor pentru anul lipsă 2023:** Nu se vor calcula cifre estimate sau fictive pentru 2023; decalajul este prezentat ca discontinuitate reală de date.
 3. **Plăți sau servicii administrative:** Fără colectare de taxe, procesare de plăți sau formulare administrative pentru primărie.
 4. **OCR direct din PDF:** Parsarea se realizează exclusiv pe fișierele structurate `.xlsx` și `.csv` (conversia PDF → Excel a fost făcută offline).
-5. **Autentificare socială OAuth / Tranzacții email:** Fără login cu Google/Facebook și fără integrare de servere SMTP externe.
+5. **Autentificare socială OAuth / Tranzacții email:** Fără login cu Google/Facebook și fără integrare de servere SMTP externe; deci fără resetare de parolă prin email (D-013).
 6. **Clasificare automată cu AI/LLM:** Maparea se face determinist, prin reguli stocate în PostgreSQL și configurabile de Admin.
 7. **Sincronizare live prin API:** Încărcarea datelor se face exclusiv manual prin fișiere de către Admin.
+8. **Harta investițiilor și „proiectele”:** Fișierele de buget nu conțin locații și nici identificatori de proiect, deci nu există hartă cu pin-uri, galerie foto legată de proiecte sau pagini de proiect (decis 2026-11-26). Investițiile se arată la nivel de subcapitol.
+9. **Export JSON:** Exportul se face doar în CSV (D-014).
 
 ---
 

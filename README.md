@@ -12,7 +12,7 @@ Bugetele administrației locale sunt publicate de regulă în formate greu acces
 1. **Normaliza și curăța datele reale:** Importă execuțiile bugetare din fișiere `.xlsx`/`.csv`, detectează anomaliile contabile reale (ex. dublarea blocului `5002 TOTAL CHELTUIELI`, denumiri multi-line, valori negative legitime) și verifică integritatea prin reconciliere matematică automată.
 2. **Oferi transparență cetățenilor:** Traduce codurile bugetare tehnice într-o taxonomie prietenoasă pe două axe (Funcționare vs. Investiții și 7 domenii tematice clare).
 3. **Răspunde întrebărilor jurnaliștilor locali:** Afișează imediat în pagina principală evoluția reală a investițiilor, rata de realizare efectivă, alertele de variație majoră (>30% / >50%) și proiectele cu execuție zero.
-4. **Permite explorarea detaliată și participarea civică:** Vizualizare Treemap cu navigare ierarhică (Capitol → Subcapitol → Titlu), comparații an/an cu funcții analitice SQL, calcul pe cap de locuitor (per capita) și adnotări moderate pe fiecare linie de buget.
+4. **Permite explorarea detaliată și participarea civică:** Vizualizare Treemap în două vederi, funcțională (Domeniu → Capitol → Subcapitol → Paragraf) și economică (Capitol → Titlu → Articol) (Q-006), comparații an/an cu funcții analitice SQL, calcul pe cap de locuitor (per capita) și adnotări moderate pe fiecare linie de buget.
 
 Documentul complet de scop se găsește în [docs/SCOPE.md](docs/SCOPE.md).
 
@@ -38,7 +38,7 @@ Documentul complet de scop se găsește în [docs/SCOPE.md](docs/SCOPE.md).
   5. *Asistență Socială și Sănătate* (Cap. 68.02 și Cap. 66.02)
   6. *Administrație, Ordine Publică și Datorie* (Cap. 51.02, 54.02, 55.02, 61.02)
   7. *Agricultură și Alte Acțiuni Economice* (Cap. 83.02 și 87.02)
-* **Gruparea Veniturilor (3 surse):** Taxe și venituri locale (03.02–18.02, 30.02–36.02), Sume de la bugetul de stat (11.02, 42.02, 43.02), Fonduri Europene (45.02, 48.02).
+* **Gruparea Veniturilor (3 surse):** Taxe și venituri locale (03.02–18.02, 30.02–36.02), Sume de la bugetul de stat (11.02, 42.02, 43.02, fără PNRR), Fonduri Europene (45.02, 48.02 și PNRR: 42.02.88, 42.02.89, 43.02.49, cu nota că banii PNRR vin de la UE prin bugetul de stat).
 * **Compromisuri documentate:** Introducerea titlurilor noi PNRR în 2024–2025; agregarea investițiilor la nivel de subcapitol în absența codurilor unice de proiect în sursele primare.
 
 ### Variabila 3: Întrebarea Jurnalistului pe Pagina Principală
@@ -46,9 +46,9 @@ Documentul complet de scop se găsește în [docs/SCOPE.md](docs/SCOPE.md).
   > *„Cum au evoluat investițiile în comuna Șura Mare în perioada 2022–2025 și câți dintre banii alocați au fost cheltuiți efectiv?”*
 * **Răspunsul vizual imediat (Hero Dashboard):**
   * Card de sinteză: Sume prevăzute vs. plăți efective pe investiții (2022, 2024, 2025), rată de execuție % și raportul Funcționare vs. Investiții.
-  * 4 KPI-uri anuale: Buget aprobat, Încasări (pe 3 surse), Cheltuieli, Sold/Disponibil rămas.
+  * 4 KPI-uri anuale: Buget aprobat, Încasări (pe 3 surse), Cheltuieli, „Sold (încasări − plăți)” (D-011).
   * Grafic ponderi pe cele 7 domenii tematice.
-  * Semnale automate: Alerte pentru variații an/an peste +30% și +50% (procent și valoare în lei) + lista proiectelor bugetate cu execuție 0% sau <10%.
+  * Semnale automate (D-010): variații an/an ale plăților peste +30% și +50% (procent și valoare în lei), la nivel de subcapitol, cu 2024 comparat „față de 2022” + lista subcapitolelor bugetate cu execuție 0% sau <10%.
 
 ---
 
@@ -60,7 +60,7 @@ Conform deciziei arhitecturale [D-002](docs/agents/DECISIONS.md#d-002--full-tech
 * **Design & UI:** Tailwind CSS (bazat pe tokenii din [docs/design/DESIGN.md](docs/design/DESIGN.md)), suport Light/Dark mode, URL state sincronizat prin `searchParams`
 * **Bază de date & SQL:** PostgreSQL 16 rulat prin Docker Compose, accesat prin `pg` / Drizzle ORM
   * Calcule analitice și comparații an/an executate nativ în SQL (`GROUP BY`, `CTE`, `LAG()`)
-  * Conform [D-003](docs/agents/DECISIONS.md#d-003--exact-numeric-representation-for-monetary-values): sume monetare stocate exact ca `BIGINT` (în bani) sau `NUMERIC(15, 2)`, fără `FLOAT`
+  * Conform [D-003](docs/agents/DECISIONS.md#d-003--exact-numeric-representation-for-monetary-values) și D-007: sume monetare stocate exact ca `BIGINT` (în bani), fără `FLOAT`
 * **Vizualizări Interactive:** Apache ECharts (`echarts-for-react`) cu Treemap pentru drill-down ierarhic și export grafic
 * **Parsare Fișiere:** `xlsx` (SheetJS) server-side cu parsare structurată a rapoartelor financiare oficiale
 * **Motor de Reconciliere:** Conform [D-004](docs/agents/DECISIONS.md#d-004--reconciliation-tolerance-and-publication-gate): toleranță de rotunjire ±1,00 leu, justificare textuală obligatorie (≥20 caractere) pentru publicarea fișierelor cu discrepanțe
@@ -71,11 +71,11 @@ Conform deciziei arhitecturale [D-002](docs/agents/DECISIONS.md#d-002--full-tech
 ## 4. Structura Ecranelor
 
 1. `/` — **Tablou de bord principal:** Răspunsul direct la întrebarea din interviu, KPI-uri anuale, semnale automate.
-2. `/explorator` — **Explorator de Buget:** Vizualizare Treemap ierarhică, filtre dinamice, export CSV, adnotări pe linii bugetare.
+2. `/explorator` — **Explorator de Buget:** Treemap în vederea funcțională și în cea economică (Q-006), filtre dinamice, export CSV (doar CSV, D-014), adnotări pe linii bugetare.
 3. `/cautare` — **Căutare & Detalii:** Căutare liberă după cuvinte-cheie în denumirile de indicatori pe toți anii.
 4. `/comparatii` — **Comparații An/An & Indicatori:** Analiză temporală comparativă YoY, indicatori per capita și ajustare inflație.
 5. `/audit` — **Metodologie, Audit & Reconciliere:** Rapoarte publice de reconciliere, descărcare fișiere originale (XLSX/PDF).
-6. `/login` / `/register` — **Autentificare:** Sistem simplu email/parolă securizat cu bcrypt și sesiuni HTTP-only.
+6. `/login` / `/register` — **Autentificare:** Sistem simplu email/parolă securizat cu bcrypt și sesiuni HTTP-only. Parolele le resetează adminul (D-013).
 7. `/admin` — **Panou Administrare:** Import fișiere, reconciliere și aprobare publicare, moderare adnotări, configurare mapări.
 
 ---
@@ -89,6 +89,8 @@ Conform deciziei arhitecturale [D-002](docs/agents/DECISIONS.md#d-002--full-tech
 * Fără autentificare externă OAuth (Google/Facebook) sau servere de trimitere email-uri.
 * Fără algoritmi de clasificare automată AI/LLM.
 * Fără sincronizare API live cu Ministerul Finanțelor.
+* Fără hartă a investițiilor și fără „proiecte”: fișierele de buget nu conțin locații sau identificatori de proiect.
+* Fără export JSON: doar CSV (D-014).
 
 ---
 

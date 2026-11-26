@@ -16,6 +16,11 @@
 - D-007 · Monetary amounts stored as BIGINT in bani
 - D-008 · Structure of locality_stats
 - D-009 · Year-dependent taxonomy mapping with explainable notes
+- D-010 · Automatic signals at subchapter level, on payments
+- D-011 · Execution rates, balance and inflation adjustment
+- D-012 · Citizen/Analytic display mode is a URL preference, not a role
+- D-013 · Password reset by the administrator only
+- D-014 · Export in CSV only
 
 ---
 
@@ -113,4 +118,60 @@
 - **Source:** user · confidence high
 - **Owner note:** Overlapping year ranges for the same axis and prefix are not blocked by the unique key; the code that writes mappings must reject them (an exclusion constraint would need the `btree_gist` extension).
 - **Confirmed:** 2026-11-25
+
+## D-010 · Automatic signals at subchapter level, on payments
+- **Status:** approved
+- **Date:** 2026-11-26
+- **Rule:** Automatic signals (CONTEXT.md, „Semnal automat”) are computed per functional subchapter (`capitol.subcapitol`; a chapter without subchapters counts as its own subchapter) on `plati_efectuate`. Year-on-year variation: above +30% is a warning, above +50% is major, shown with the percentage and the difference in lei. 2024 is compared with 2022 and labelled „față de 2022” (2023 is missing). Low execution: subchapters with credite bugetare definitive > 0 and an execution rate (D-011) of 0% or below 10%.
+- **Why:** Investments are only identifiable at subchapter level (no project ids in the files); payments are the money actually spent.
+- **Rejected:** Signals per project (no project data), on credite definitive, or silently comparing 2024 with an estimated 2023.
+- **Evidence:** user answers 2026-11-26; docs/SCOPE.md §2.3; README.md §2
+- **Source:** user · confidence high
+- **Confirmed:** 2026-11-26
+
+## D-011 · Execution rates, balance and inflation adjustment
+- **Status:** approved
+- **Date:** 2026-11-26
+- **Rule:**
+  - Expense execution rate = `plati_efectuate / credite_bugetare_definitive`.
+  - Revenue execution rate = `incasari_realizate / prevederi_definitive`.
+  - Balance KPI = `incasari_realizate − plati_efectuate` for the year, labelled exactly „Sold (încasări − plăți)”. No „acoperit din excedent” or other claim that the files cannot support.
+  - Inflation adjustment uses the annual average CPI and expresses every amount in 2025 prices. The CPI values are entered by the user from INS (Q-002); without them the adjusted view is not shown.
+  - All computed in SQL on BIGINT bani (D-007); rounding only for display.
+- **Why:** One definition per indicator, computable from the official files alone.
+- **Rejected:** Balance including the previous years' surplus (not in the files); estimated CPI values.
+- **Evidence:** user answers 2026-11-26; CONTEXT.md („Rată de execuție”); D-008
+- **Source:** user · confidence high
+- **Owner note:** Bringing 2022 and 2024 to 2025 prices needs the annual indices of every later year, 2023 included; `locality_stats` can hold a 2023 row with CPI only. The exact INS series is part of Q-002.
+- **Confirmed:** 2026-11-26
+
+## D-012 · Citizen/Analytic display mode is a URL preference, not a role
+- **Status:** approved
+- **Date:** 2026-11-26
+- **Rule:** „Mod Cetățean” / „Mod Analitic” only changes what is shown (e.g. budget codes, SQL details). It is stored in the URL (search parameter) like the other view state, has no link to roles or accounts, and there are no profile types (jurnalist, consilier, cercetător).
+- **Why:** Keeps the three roles of the project sheet (vizitator, utilizator, admin) and keeps every view reproducible from its URL.
+- **Rejected:** Mode chosen by profile type at registration (DS-006 mock).
+- **Evidence:** user answers 2026-11-26; docs/brief.md (roles, URL state)
+- **Source:** user · confidence high
+- **Confirmed:** 2026-11-26
+
+## D-013 · Password reset by the administrator only
+- **Status:** approved
+- **Date:** 2026-11-26
+- **Rule:** There is no self-service „Ai uitat parola?”. The administrator resets a user's password from `/admin`.
+- **Why:** Self-service reset needs email delivery, and SMTP is out of scope (SCOPE.md §7).
+- **Rejected:** Email reset links.
+- **Evidence:** user answers 2026-11-26; D-006
+- **Source:** user · confidence high
+- **Confirmed:** 2026-11-26
+
+## D-014 · Export in CSV only
+- **Status:** approved
+- **Date:** 2026-11-26
+- **Rule:** Data export is CSV only, in the format of Q-004 (the current selection). No JSON export.
+- **Why:** The project sheet asks for CSV export of any selection; one format to build and test.
+- **Rejected:** JSON export (DS-001, DS-003 mocks).
+- **Evidence:** user answers 2026-11-26; docs/brief.md; Q-004
+- **Source:** user · confidence high
+- **Confirmed:** 2026-11-26
 
