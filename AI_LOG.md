@@ -122,5 +122,63 @@ Acest fișier documentează sesiunile de lucru dintre utilizator și asistentul 
 * **Pagină de Comparații axată pe grafice (`04-comparatii.html`):** 3 grafice SVG în stil *Our World in Data* (bare grupate Previzionat vs. Plăți cu marcaj pentru lipsa 2023, evoluție liniară pe 7 domenii cu etichete directe și Funcționare vs. Investiții 100% Stacked) + comutator dinamic între *Lei Nominali*, *Ajustat cu Inflația (IPC)* și *Per Capita*, iar tabelul SQL `LAG()` este mutat într-un acordeon colapsabil la final.
 * **Ecrane `03`, `05`, `06`, `07`:** Aliniate la header-ul unificat și tokenii `DESIGN.md`, cu filtrare live în `03-cautare.html` și banner foto `primarie.jpg` în `06-auth.html`.
 
+---
 
+## Sesiunea 6: Pasul E — Parser, Reconciliere, Schema Bazei de Date și CI
+**Data:** 25 noiembrie 2026  
+**Context:** Pasul E — prima bucată de cod: parserul XLSX/CSV, motorul de reconciliere, schema PostgreSQL și migrările (PR #1)
+
+### 1. Unealta
+* Claude Code (CLI, model Claude Opus 5.5), rulat în repo, cu skill-urile `/plan` și `/build` ale proiectului.
+* Pentru review: trei sub-agenți rulați în paralel (Performanță, Securitate, SEO & GEO), doar cu drept de citire.
+
+### 2. Ce am cerut
+* Punerea la curent cu starea proiectului (AGENTS.md, CONTEXT.md, DATA.md, ledger, design).
+* Comiterea fișierelor de design rămase nesalvate (registry, AI_LOG, imagini) pe un branch `chore/`.
+* Analiza fișierelor XLSX reale pentru regula lipsă din DATA.md §4.2 (punctul 5), cu aprobarea mea înainte de a fi scrisă.
+* Decizia „BIGINT în bani” (D-007); structura pentru `locality_stats` (D-008) și pentru taxonomia dependentă de an, cu note explicative (D-009, ajustată de mine: tabel separat `budget_categories`, `valid_from_year`/`valid_to_year`, `note`).
+* Propunere pentru Q-006 (treemap-ul: datele nu încrucișează Subcapitol × Titlu).
+* `/plan` și `/build` pentru Pasul E, în două commit-uri, cu parserul care primește pozițiile coloanelor dintr-un obiect de mapare, CI pe GitHub Actions (Vitest + ledger-lint, cu test de DB pe un container Postgres) și layout-ul salvat în `import_batches`.
+* Testele de DB fără ștergeri: doar pe o bază `_test`, fiecare test anulat cu `ROLLBACK`.
+* Code review pe PR #1, apoi repararea constatărilor alese de mine (2 cu 3, 4, 5, 8, 9, 10) și înregistrarea celor amânate (1, 7) ca cerințe pentru planurile viitoare.
+* Inventarul fișierelor din `data/raw/` în DATA.md §2 (după ce am completat eu sursa și licența în §1).
+
+### 3. Ce am primit
+* **Analiza datelor:** regulile 5 (sume sub 1.000 lei stocate ca text), 6 (coduri rare și cod de capitol repetat) și 7 (capitol fără rând propriu), plus completarea la regula 2 (titlul 84); cele 6 fișiere reale se reconciliază exact, la ban (5.137 de verificări, toate `exact_match`).
+* **Cod (PR #1):** `src/lib/money.ts`, `src/lib/budget/{layout,parse,reconcile}.ts`, schema Drizzle cu 7 tabele (`src/db/schema.ts`, migrările `drizzle/0000`–`0002`), importul `npm run db:import`, Docker Compose (Postgres 16, doar pe localhost), CI în `.github/workflows/ci.yml`.
+* **Teste:** 74 unitare și 15 de integrare, toate trecute local și în CI.
+* **Review:** 11 constatări, sortate după severitate; reparate 2, 3, 4, 5, 8, 9, 10; amânate 1 (limite la upload, Q-008) și 7 (ruta de publicare, Q-009); 6 → Q-010 (sursă și licență, answered cu DATA.md §1); 11 → PATTERN-004.
+* **Ledger:** D-007, D-008, D-009 aprobate; Q-003, Q-005, Q-006, Q-010 answered; Q-007, Q-008, Q-009 deschise; pattern-urile candidate PATTERN-003 (teste de DB cu `ROLLBACK`), PATTERN-004 (URL-uri din cod și an), PATTERN-005 (`PARSER_VERSION`).
+* **Git:** branch-urile `chore/commit-design-assets` (fast-forward în `main`) și `feat/step-e-data-foundation` (PR #1, merge făcut de mine pe GitHub).
+
+### 4. Ce am făcut cu ea
+* - Am schimbat agentul (din Antigravity în Claude Code) și l-am pus întâi
+  să citească registrul. A găsit nepotriviri reale: fișiere de design
+  necomise, Q-003 rămasă deschisă deși avea răspuns, DATA.md §4.2
+  neterminat. Le-am verificat și le-am aprobat pe rând.
+- La Q-002, agentul propunea populația „seed-uită cu valori estimative".
+  Am refuzat: catalogul interzice datele inventate. Tabelul rămâne gol
+  până iau eu valorile din INS Tempo.
+- Inițial lăsasem locality_stats și maparea pe taxonomie în afara
+  pasului. După ce am recitit fișa P09 m-am corectat: populația e cerință
+  must și maparea e twist-ul, deci au intrat în schemă.
+- D-009 propusă de agent nu avea an și nici explicație pentru utilizator.
+  Am cerut valid_from_year / valid_to_year, note și un tabel separat de
+  categorii, pentru ca maparea să poată spune „în 2022, X era raportat
+  sub Y".
+- Am refuzat o comandă pe care nu o înțelegeam (avertisment de ștergere)
+  și am cerut explicații. Am ales varianta fără ștergeri: teste în
+  tranzacții cu ROLLBACK, doar pe o bază _test.
+- Am observat că testele de DB nu au picat înainte de cod, deci acolo
+  „testele întâi" nu a fost respectat complet.
+- La review-ul cu 3 specialiști am reparat 6 probleme (reimport după
+  schimbarea parserului, un singur lot publicat pe an, justificarea
+  ocolită cu spații etc.) și am amânat 2 cu motiv (limitele la upload,
+  ruta de publicare), notate ca Q-008 și Q-009.
+- Sursa și licența datelor le-am completat eu în DATA.md, după ce am
+  verificat site-ul primăriei; nu am lăsat agentul să le scrie. 
+*
+
+Unealta: Claude Code (/plan, /build, review cu sub-agenți) + Claude
+(chat) pentru a înțelege pașii și a formula prompturile.
 
