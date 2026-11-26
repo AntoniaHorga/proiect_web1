@@ -131,6 +131,8 @@ Acest fișier documentează sesiunile de lucru dintre utilizator și asistentul 
 ### 1. Unealta
 * Claude Code (CLI, model Claude Opus 5.5), rulat în repo, cu skill-urile `/plan` și `/build` ale proiectului.
 * Pentru review: trei sub-agenți rulați în paralel (Performanță, Securitate, SEO & GEO), doar cu drept de citire.
+* Claude Code (/plan, /build, review cu sub-agenți) + Claude
+  (chat) pentru a înțelege pașii și a formula prompturile.
 
 ### 2. Ce am cerut
 * Punerea la curent cu starea proiectului (AGENTS.md, CONTEXT.md, DATA.md, ledger, design).
@@ -152,33 +154,28 @@ Acest fișier documentează sesiunile de lucru dintre utilizator și asistentul 
 * **Git:** branch-urile `chore/commit-design-assets` (fast-forward în `main`) și `feat/step-e-data-foundation` (PR #1, merge făcut de mine pe GitHub).
 
 ### 4. Ce am făcut cu ea
-* - Am schimbat agentul (din Antigravity în Claude Code) și l-am pus întâi
+* Am schimbat agentul (din Antigravity în Claude Code) și l-am pus întâi
   să citească registrul. A găsit nepotriviri reale: fișiere de design
   necomise, Q-003 rămasă deschisă deși avea răspuns, DATA.md §4.2
   neterminat. Le-am verificat și le-am aprobat pe rând.
-- La Q-002, agentul propunea populația „seed-uită cu valori estimative".
+* La Q-002, agentul propunea populația „seed-uită cu valori estimative".
   Am refuzat: catalogul interzice datele inventate. Tabelul rămâne gol
   până iau eu valorile din INS Tempo.
-- Inițial lăsasem locality_stats și maparea pe taxonomie în afara
+* Inițial lăsasem locality_stats și maparea pe taxonomie în afara
   pasului. După ce am recitit fișa P09 m-am corectat: populația e cerință
   must și maparea e twist-ul, deci au intrat în schemă.
-- D-009 propusă de agent nu avea an și nici explicație pentru utilizator.
+* D-009 propusă de agent nu avea an și nici explicație pentru utilizator.
   Am cerut valid_from_year / valid_to_year, note și un tabel separat de
   categorii, pentru ca maparea să poată spune „în 2022, X era raportat
   sub Y".
-- Am refuzat o comandă pe care nu o înțelegeam (avertisment de ștergere)
+* Am refuzat o comandă pe care nu o înțelegeam (avertisment de ștergere)
   și am cerut explicații. Am ales varianta fără ștergeri: teste în
   tranzacții cu ROLLBACK, doar pe o bază _test.
-- Am observat că testele de DB nu au picat înainte de cod, deci acolo
+* Am observat că testele de DB nu au picat înainte de cod, deci acolo
   „testele întâi" nu a fost respectat complet.
-- La review-ul cu 3 specialiști am reparat 6 probleme (reimport după
+* La review-ul cu 3 specialiști am reparat 6 probleme (reimport după
   schimbarea parserului, un singur lot publicat pe an, justificarea
   ocolită cu spații etc.) și am amânat 2 cu motiv (limitele la upload,
   ruta de publicare), notate ca Q-008 și Q-009.
-- Sursa și licența datelor le-am completat eu în DATA.md, după ce am
-  verificat site-ul primăriei; nu am lăsat agentul să le scrie. 
-*
-
-Unealta: Claude Code (/plan, /build, review cu sub-agenți) + Claude
-(chat) pentru a înțelege pașii și a formula prompturile.
-
+* Sursa și licența datelor le-am completat eu în DATA.md, după ce am
+  verificat site-ul primăriei; nu am lăsat agentul să le scrie.
