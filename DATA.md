@@ -39,6 +39,7 @@ Datele oficiale au fost publicate sub formă de rapoarte PDF și convertite în 
 
 ## 3. Date lipsa
 - Anul 2023: Rapoartele de executie bugetara pentru anul 2023 lipsesc din arhiva publicata online pe site-ul Primariei Sura Mare, fiind prezentate doar datele pana la luna 09 a anului respectiv.
+- Cerere pe Legea 544/2001: nu s-a trimis o cerere pentru 2023. Proiectul folosește cei 3 ani publicați pe site (2022, 2024, 2025), care acoperă minimul de 3 ani din fișa P09. Anul 2023 rămâne afișat ca an lipsă, fără estimări.
 
 ## 4. Structura Coloanelor și Probleme Identificate (Data Quality)
 - **Antet pe 2 rânduri (rândurile `0` și `1`):** Rândul `0` conține denumirile coloanelor, iar rândul `1` conține codurile oficiale ale coloanelor (`A`, `B`, `1..9` la cheltuieli; `A`, `B`, `1..8=3-6-7` la venituri). Datele efective încep întotdeauna de la rândul `2`.

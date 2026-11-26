@@ -59,6 +59,16 @@ board or Figma.
 
 ---
 
+## Mock data
+The figures in `mocks/*.html` (amounts, percentages, population, CPI, reconciliation
+statuses, map pins, project names) are **illustrative, not real data**. The real screens
+take every value from SQL on the imported files. Some mock figures are known to be wrong
+(the 2025 domain shares add up to 115.6%; DS-005 shows statuses that the real files do not
+have; DS-004 shows invented population and CPI). The mocks are corrected when each screen
+is redrawn. Elements removed from scope on 2026-11-26 still appear in the mocks: the
+investment map and „proiecte” (SCOPE.md §7), JSON export (D-014), „Ai uitat parola?”
+(D-013), profile types tied to the display mode (D-012).
+
 ## Design Tokens
 
 ### 1. Typography

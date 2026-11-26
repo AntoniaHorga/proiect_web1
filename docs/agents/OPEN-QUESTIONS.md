@@ -12,7 +12,7 @@
 - Q-001 · What technology stack, frameworks, and requirements apply to this project? · _answered_
 - Q-002 · Care sunt valorile oficiale INS (populație și IPC) pentru Comuna Șura Mare pe anii 2022, 2024, 2025?
 - Q-003 · Cum sunt stocate fișierele originale încărcate pentru audit (Object storage vs. sistem de fișiere local)? · _answered_
-- Q-004 · Care este formatul și granularitatea exportului CSV din explorator?
+- Q-004 · Care este formatul și granularitatea exportului CSV din explorator? · _answered_
 - Q-005 · Cum gestionăm eventualele encoding-uri non-UTF-8 sau denumiri fragmentate la importul de fișiere noi? · _answered_
 - Q-006 · Ce ierarhie folosește treemap-ul, dat fiind că datele nu încrucișează Subcapitol × Titlu? · _answered_
 - Q-007 · Cum lipim fragmentele de denumire care se termină cu cratimă?
@@ -33,7 +33,7 @@
 - **Status:** open
 - **Blocks:** Calculele exacte per capita și ajustarea la inflație în interfață.
 - **Who answers:** Utilizatorul / INS Tempo Online.
-- **Proposed answer:** Preluarea populației după domiciliu/rezidență din INS Tempo Online pentru Comuna Șura Mare și a indicelui prețurilor de consum (IPC) pentru 2022, 2024, 2025; stocate în tabelul `locality_stats`, introduse de utilizator din INS Tempo Online. Nu se folosesc valori estimative sau inventate: până la introducere tabelul rămâne gol, iar calculele per capita și ajustarea la inflație nu se afișează.
+- **Proposed answer:** Preluarea populației după domiciliu/rezidență din INS Tempo Online pentru Comuna Șura Mare și a indicelui prețurilor de consum (IPC) pentru 2022, 2024, 2025; stocate în tabelul `locality_stats`, introduse de utilizator din INS Tempo Online. IPC: media anuală, cu sumele aduse la prețurile din 2025 (D-011). Nu se folosesc valori estimative sau inventate: până la introducere tabelul rămâne gol, iar calculele per capita și ajustarea la inflație nu se afișează.
 
 ## Q-003 · Cum sunt stocate fișierele originale încărcate pentru audit (Object storage vs. sistem de fișiere local)?
 - **Status:** answered
@@ -44,11 +44,12 @@
 - **Answer:** Volum local persistent în Docker (`uploads/original_files/`), servit prin `/audit`, accesat prin interfața `FileStorageService`. Înregistrat ca decizia D-005.
 
 ## Q-004 · Care este formatul și granularitatea exportului CSV din explorator?
-- **Status:** open
+- **Status:** answered
+- **Date:** 2026-11-26
 - **Blocks:** Implementarea endpoint-ului de descărcare CSV din ecranul `/explorator`.
 - **Who answers:** Utilizatorul / Cerințele de raportare civică.
 - **Proposed answer:** Exportul CSV reflectă selecția curentă a utilizatorului (anul selectat, filtrele de Funcționare/Dezvoltare, capitolele filtrate), conținând coloanele: An, Cod Capitol, Denumire, Titlu Economic, Sumă Aprobată, Sumă Executată, Procent Execuție.
-- **Confirmed:** 2026-11-25
+- **Answer:** The proposed answer is confirmed (user, 2026-11-26): the export reflects the current selection, with the columns An, Cod Capitol, Denumire, Titlu Economic, Sumă Aprobată, Sumă Executată, Procent Execuție. CSV only (D-014).
 
 ## Q-005 · Cum gestionăm eventualele encoding-uri non-UTF-8 sau denumiri fragmentate la importul de fișiere noi?
 - **Status:** answered
@@ -80,7 +81,7 @@
 - **Blocks:** Planul de upload din panoul de administrare (DS-007). **Cerință obligatorie pentru acel plan**, amânată din review-ul PR #1 (constatarea 1).
 - **Who answers:** Utilizatorul (valorile limitelor).
 - **Evidence:** `src/lib/budget/parse.ts:100,106`: `XLSX.read` fără limite și `sheet_to_json` cu `blankrows`/`defval` construiesc matricea după intervalul declarat (`!ref`), nu după celulele reale. Un XLSX de 15,8 KB cu `!ref A1:CV200000` a cerut 22 s și 356 MB (măsurat în review). `XLSX.read` acceptă și alte formate (HTML, SYLK) când se așteaptă XLSX. `markLeaves` (`parse.ts:277`) și `directChildren`/`topLevel` (`reconcile.ts:51,57`) sunt O(n²).
-- **Required in the upload plan:** limită de mărime a fișierului; limitarea intervalului citit (`sheetRows` și verificarea `decode_range` față de un maxim de rânduri și coloane); citirea doar a coloanelor folosite de layout; un maxim de linii înainte de reconciliere; verificarea semnăturii ZIP (`PK\x03\x04`) pentru XLSX. Valorile exacte le stabilește utilizatorul.
+- **Required in the upload plan:** limită de mărime a fișierului; limitarea intervalului citit (`sheetRows` și verificarea `decode_range` față de un maxim de rânduri și coloane); citirea doar a coloanelor folosite de layout; un maxim de linii înainte de reconciliere; verificarea semnăturii ZIP (`PK\x03\x04`) pentru XLSX. Valorile exacte le stabilește utilizatorul. Tot în planul de upload (decis 2026-11-26): layout-urile asistentului de mapare se salvează cu nume și se refolosesc la importurile următoare (tabel nou).
 
 ## Q-009 · Ce trebuie să garanteze ruta de publicare a unui import?
 - **Status:** open
@@ -89,6 +90,7 @@
 - **Who answers:** Utilizatorul.
 - **Evidence:** `import_batches_publication_gate_check` (`src/db/schema.ts`) se bazează pe `reconciliation_status`, o coloană care poate fi scrisă oricând: un `UPDATE ... SET status='published', reconciliation_status='exact_match'` trece de poartă.
 - **Required in the publication route:** ruta nu acceptă niciodată `reconciliation_status` de la client; îl scrie doar importul. Variantă de discutat în plan: un trigger care refuză modificarea `reconciliation_status` după ce `reconciled_at` este setat.
+- **Also required (decided 2026-11-26):** fiecare diferență de reconciliere primește automat un tip de explicație posibilă (rând de total dublat, subcapitol lipsă, sumă negativă), afișat adminului și pe `/audit`, cum cere fișa P09.
 
 ## Q-010 · Care sunt sursa exactă (URL) și licența datelor bugetare?
 - **Status:** answered
